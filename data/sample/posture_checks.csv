@@ -1,0 +1,158 @@
+check_id,tenant_id,check_date,check_name,category,status,affected_users,severity,resolved,notes
+PC-001,T-001,2026-01-05,MFA Enforcement,Identity,fail,62,critical,false,MFA not enforced for 62 users in legacy AD sync group
+PC-002,T-001,2026-01-05,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-003,T-001,2026-01-05,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-004,T-001,2026-01-05,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-005,T-001,2026-01-05,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-006,T-001,2026-01-05,Guest Access Policy,Collaboration,fail,0,medium,false,Guest access policy misconfigured; overly permissive sharing detected
+PC-007,T-001,2026-01-05,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-008,T-002,2026-01-05,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-009,T-002,2026-01-05,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-010,T-002,2026-01-05,External Forwarding Rules,Email Security,fail,4,high,false,4 users with active external forwarding to personal accounts
+PC-011,T-002,2026-01-05,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-012,T-002,2026-01-05,Legacy Auth Protocols,Identity,fail,8,high,false,Legacy IMAP access enabled for 8 shared mailboxes
+PC-013,T-002,2026-01-05,Guest Access Policy,Collaboration,fail,0,medium,false,Guest sharing not restricted by domain
+PC-014,T-001,2026-01-12,MFA Enforcement,Identity,fail,58,critical,false,MFA not enforced for 58 users in legacy AD sync group
+PC-015,T-001,2026-01-12,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-016,T-001,2026-01-12,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-017,T-001,2026-01-12,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-018,T-001,2026-01-12,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-019,T-001,2026-01-12,Guest Access Policy,Collaboration,fail,0,medium,false,Guest access policy misconfigured; overly permissive sharing detected
+PC-020,T-001,2026-01-12,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-021,T-002,2026-01-12,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-022,T-002,2026-01-12,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-023,T-002,2026-01-12,External Forwarding Rules,Email Security,fail,3,high,false,3 users with active external forwarding to personal accounts
+PC-024,T-002,2026-01-12,Legacy Auth Protocols,Identity,fail,6,high,false,Legacy IMAP access enabled for 6 shared mailboxes
+PC-025,T-002,2026-01-12,Guest Access Policy,Collaboration,fail,0,medium,false,Guest sharing not restricted by domain
+PC-026,T-001,2026-01-19,MFA Enforcement,Identity,fail,65,critical,false,MFA not enforced for 65 users in legacy AD sync group
+PC-027,T-001,2026-01-19,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-028,T-001,2026-01-19,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-029,T-001,2026-01-19,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-030,T-001,2026-01-19,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-031,T-001,2026-01-19,Guest Access Policy,Collaboration,fail,0,medium,false,Guest access policy misconfigured; overly permissive sharing detected
+PC-032,T-001,2026-01-19,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-033,T-002,2026-01-19,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-034,T-002,2026-01-19,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-035,T-002,2026-01-19,External Forwarding Rules,Email Security,fail,3,high,false,3 users with active external forwarding to personal accounts
+PC-036,T-002,2026-01-19,Legacy Auth Protocols,Identity,fail,5,high,false,Legacy IMAP access enabled for 5 shared mailboxes
+PC-037,T-002,2026-01-19,Guest Access Policy,Collaboration,fail,0,medium,false,Guest sharing not restricted by domain
+PC-038,T-001,2026-01-26,MFA Enforcement,Identity,fail,70,critical,false,MFA not enforced for 70 users in legacy AD sync group
+PC-039,T-001,2026-01-26,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-040,T-001,2026-01-26,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-041,T-001,2026-01-26,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-042,T-001,2026-01-26,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-043,T-001,2026-01-26,Guest Access Policy,Collaboration,fail,0,medium,false,Guest access policy misconfigured; overly permissive sharing detected
+PC-044,T-001,2026-01-26,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-045,T-002,2026-01-26,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-046,T-002,2026-01-26,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-047,T-002,2026-01-26,External Forwarding Rules,Email Security,fail,2,high,false,2 users with active external forwarding to personal accounts
+PC-048,T-002,2026-01-26,Legacy Auth Protocols,Identity,fail,4,high,false,Legacy IMAP access enabled for 4 shared mailboxes
+PC-049,T-002,2026-01-26,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing now restricted to approved domains
+PC-050,T-001,2026-02-02,MFA Enforcement,Identity,fail,64,critical,false,MFA not enforced for 64 users in legacy AD sync group
+PC-051,T-001,2026-02-02,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-052,T-001,2026-02-02,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-053,T-001,2026-02-02,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-054,T-001,2026-02-02,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-055,T-001,2026-02-02,Guest Access Policy,Collaboration,fail,0,medium,false,Guest access policy misconfigured; overly permissive sharing detected
+PC-056,T-001,2026-02-02,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-057,T-002,2026-02-02,MFA Enforcement,Identity,fail,12,critical,false,MFA policy not applied to 12 recently provisioned contractor accounts
+PC-058,T-002,2026-02-02,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-059,T-002,2026-02-02,External Forwarding Rules,Email Security,fail,2,high,false,2 users with active external forwarding to personal accounts
+PC-060,T-002,2026-02-02,Legacy Auth Protocols,Identity,fail,4,high,false,Legacy IMAP access enabled for 4 shared mailboxes
+PC-061,T-002,2026-02-02,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted to approved domains
+PC-062,T-001,2026-02-09,MFA Enforcement,Identity,fail,61,critical,false,MFA not enforced for 61 users in legacy AD sync group
+PC-063,T-001,2026-02-09,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-064,T-001,2026-02-09,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-065,T-001,2026-02-09,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-066,T-001,2026-02-09,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-067,T-001,2026-02-09,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-068,T-001,2026-02-09,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-069,T-002,2026-02-09,MFA Enforcement,Identity,fail,10,critical,false,MFA policy not applied to 10 recently provisioned contractor accounts
+PC-070,T-002,2026-02-09,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-071,T-002,2026-02-09,External Forwarding Rules,Email Security,pass,0,high,true,External forwarding rules cleared
+PC-072,T-002,2026-02-09,Legacy Auth Protocols,Identity,fail,3,high,false,Legacy IMAP access enabled for 3 shared mailboxes
+PC-073,T-002,2026-02-09,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-074,T-001,2026-02-16,MFA Enforcement,Identity,fail,56,critical,false,MFA not enforced for 56 users in legacy AD sync group
+PC-075,T-001,2026-02-16,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-076,T-001,2026-02-16,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-077,T-001,2026-02-16,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-078,T-001,2026-02-16,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-079,T-001,2026-02-16,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-080,T-001,2026-02-16,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-081,T-002,2026-02-16,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-082,T-002,2026-02-16,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-083,T-002,2026-02-16,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-084,T-002,2026-02-16,Legacy Auth Protocols,Identity,fail,3,high,false,Legacy IMAP access enabled for 3 shared mailboxes
+PC-085,T-002,2026-02-16,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-086,T-001,2026-02-23,MFA Enforcement,Identity,fail,59,critical,false,MFA not enforced for 59 users in legacy AD sync group
+PC-087,T-001,2026-02-23,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-088,T-001,2026-02-23,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-089,T-001,2026-02-23,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-090,T-001,2026-02-23,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-091,T-001,2026-02-23,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-092,T-001,2026-02-23,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-093,T-002,2026-02-23,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-094,T-002,2026-02-23,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-095,T-002,2026-02-23,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-096,T-002,2026-02-23,Legacy Auth Protocols,Identity,fail,2,high,false,Legacy IMAP access enabled for 2 shared mailboxes
+PC-097,T-002,2026-02-23,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-098,T-001,2026-03-02,MFA Enforcement,Identity,fail,63,critical,false,MFA not enforced for 63 users in legacy AD sync group
+PC-099,T-001,2026-03-02,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-100,T-001,2026-03-02,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-101,T-001,2026-03-02,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-102,T-001,2026-03-02,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-103,T-001,2026-03-02,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-104,T-001,2026-03-02,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-105,T-002,2026-03-02,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-106,T-002,2026-03-02,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-107,T-002,2026-03-02,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-108,T-002,2026-03-02,Legacy Auth Protocols,Identity,fail,2,high,false,Legacy IMAP access enabled for 2 shared mailboxes
+PC-109,T-002,2026-03-02,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-110,T-001,2026-03-09,MFA Enforcement,Identity,fail,67,critical,false,MFA not enforced for 67 users in legacy AD sync group
+PC-111,T-001,2026-03-09,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-112,T-001,2026-03-09,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-113,T-001,2026-03-09,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-114,T-001,2026-03-09,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-115,T-001,2026-03-09,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-116,T-001,2026-03-09,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-117,T-002,2026-03-09,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-118,T-002,2026-03-09,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-119,T-002,2026-03-09,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-120,T-002,2026-03-09,Legacy Auth Protocols,Identity,pass,0,high,true,Legacy IMAP disabled for remaining shared mailboxes
+PC-121,T-002,2026-03-09,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-122,T-001,2026-03-16,MFA Enforcement,Identity,fail,60,critical,false,MFA not enforced for 60 users in legacy AD sync group
+PC-123,T-001,2026-03-16,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-124,T-001,2026-03-16,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-125,T-001,2026-03-16,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-126,T-001,2026-03-16,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-127,T-001,2026-03-16,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-128,T-001,2026-03-16,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-129,T-002,2026-03-16,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-130,T-002,2026-03-16,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-131,T-002,2026-03-16,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-132,T-002,2026-03-16,Legacy Auth Protocols,Identity,pass,0,high,true,Legacy IMAP disabled
+PC-133,T-002,2026-03-16,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-134,T-001,2026-03-23,MFA Enforcement,Identity,fail,66,critical,false,MFA not enforced for 66 users in legacy AD sync group
+PC-135,T-001,2026-03-23,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-136,T-001,2026-03-23,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-137,T-001,2026-03-23,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-138,T-001,2026-03-23,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-139,T-001,2026-03-23,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-140,T-001,2026-03-23,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-141,T-002,2026-03-23,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-142,T-002,2026-03-23,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-143,T-002,2026-03-23,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-144,T-002,2026-03-23,Legacy Auth Protocols,Identity,pass,0,high,true,Legacy IMAP disabled
+PC-145,T-002,2026-03-23,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted
+PC-146,T-001,2026-03-30,MFA Enforcement,Identity,fail,64,critical,false,MFA not enforced for 64 users in legacy AD sync group
+PC-147,T-001,2026-03-30,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to reject
+PC-148,T-001,2026-03-30,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules detected
+PC-149,T-001,2026-03-30,Admin MFA,Identity,pass,0,critical,true,All admin accounts have MFA enforced
+PC-150,T-001,2026-03-30,Legacy Auth Protocols,Identity,pass,0,high,true,Basic auth disabled across tenant
+PC-151,T-001,2026-03-30,Guest Access Policy,Collaboration,pass,0,medium,true,Guest access restricted to approved domains
+PC-152,T-001,2026-03-30,Email Encryption,Email Security,pass,0,medium,true,TLS 1.2+ enforced for all mail flow
+PC-153,T-002,2026-03-30,MFA Enforcement,Identity,pass,0,critical,true,MFA enforced via Google Workspace policies
+PC-154,T-002,2026-03-30,DMARC Policy,Email Security,pass,0,medium,true,DMARC set to quarantine
+PC-155,T-002,2026-03-30,External Forwarding Rules,Email Security,pass,0,high,true,No active external forwarding rules
+PC-156,T-002,2026-03-30,Legacy Auth Protocols,Identity,pass,0,high,true,Legacy IMAP disabled
+PC-157,T-002,2026-03-30,Guest Access Policy,Collaboration,pass,0,medium,true,Guest sharing restricted

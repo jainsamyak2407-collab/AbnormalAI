@@ -1,0 +1,36 @@
+{
+  "company_name": "Meridian Healthcare",
+  "industry": "Healthcare",
+  "employee_count": 2500,
+  "period_start": "2026-01-01",
+  "period_end": "2026-03-31",
+  "period_label": "Q1 2026",
+  "tenants": [
+    {
+      "tenant_id": "T-001",
+      "domain": "meridian.com",
+      "email_provider": "Microsoft 365",
+      "mailbox_count": 1800,
+      "label": "Primary",
+      "notes": "Primary tenant, original Meridian Healthcare domain"
+    },
+    {
+      "tenant_id": "T-002",
+      "domain": "meridianhealth.org",
+      "email_provider": "Google Workspace",
+      "mailbox_count": 700,
+      "label": "Acquisition",
+      "notes": "Acquired entity, still on separate email infrastructure"
+    }
+  ],
+  "success_criteria": {
+    "vip_inbox_attacks_per_month_max": 1,
+    "user_reporting_rate_min": 0.40,
+    "auto_remediation_rate_min": 0.75,
+    "mttr_minutes_max": 10.0
+  },
+  "csm": {
+    "name": "Jordan Ellis",
+    "email": "jellis@abnormal.ai"
+  }
+}

@@ -1,0 +1,9 @@
+/* Print stylesheet — Phase 8 will populate these rules. */
+
+@media print {
+  /* TODO: Phase 8 — @page margins, orphan/widow control, section breaks */
+}
+
+@page {
+  /* TODO: Phase 8 — size, margins, header/footer content */
+}
