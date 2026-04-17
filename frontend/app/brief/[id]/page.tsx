@@ -386,6 +386,12 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 
   useEffect(() => { if (tab === "prompt") handleLoadPrompt() }, [tab, handleLoadPrompt])
 
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", h)
+    return () => document.removeEventListener("keydown", h)
+  }, [onClose])
+
   const handleRegenerate = async () => {
     setRegenerating(true); setError(null)
     try { onRegenerated(await regenerateSection(briefId, section.id, steering || undefined)); onClose() }
@@ -830,7 +836,6 @@ export default function BriefPage() {
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ width: "24px", height: "24px", border: "2px solid var(--border-strong)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 
@@ -840,14 +845,12 @@ export default function BriefPage() {
         <p style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--danger)", marginBottom: "16px" }}>{error ?? "BRIEF NOT FOUND"}</p>
         <Link href="/" style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px" }}>HOME</Link>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-page)" }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
         .brief-section .section-actions { opacity: 0; transition: opacity 0.15s; }
         .brief-section:hover .section-actions { opacity: 1; }
       `}</style>

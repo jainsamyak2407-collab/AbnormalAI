@@ -225,7 +225,6 @@ export default function GeneratePage() {
         </div>
       </main>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

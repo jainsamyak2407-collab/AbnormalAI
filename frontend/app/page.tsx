@@ -298,9 +298,6 @@ export default function LandingPage() {
         </span>
       </footer>
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   )
 }
