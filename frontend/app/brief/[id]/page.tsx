@@ -3,10 +3,29 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { getBrief, getEvidence, getSectionPrompt, regenerateSection } from "@/lib/api"
+import {
+  ResponsiveContainer, BarChart, Bar, LineChart, Line,
+  XAxis, YAxis, Tooltip, ReferenceLine, Cell,
+} from "recharts"
+import { getBrief, getEvidence, getSectionPrompt, regenerateSection, getBriefEvidenceIndex } from "@/lib/api"
 import type { Brief, BriefSection, EvidenceRecord } from "@/lib/types"
 
-const MONO = "'Courier New', Courier, monospace"
+const MONO = "var(--font-mono)"
+const SERIF = "var(--font-serif)"
+
+// Paper palette (brief document is always light)
+const P = {
+  text:    "#1A1A1A",
+  muted:   "#6B7280",
+  faint:   "#9CA3AF",
+  border:  "#E5E4DF",
+  bg:      "#FAFAF7",
+  surface: "#F5F4EF",
+  accent:  "#4C566A",
+  coral:   "#FF5B49",
+  success: "#16A34A",
+  danger:  "#C0392B",
+}
 
 // ---------------------------------------------------------------------------
 // Evidence chip parser
@@ -28,6 +47,137 @@ function parseContent(content: string, onChip: (id: string) => void) {
 }
 
 // ---------------------------------------------------------------------------
+// Exhibit chart — maps exhibit name → EvidenceRecord → Recharts chart
+// ---------------------------------------------------------------------------
+
+function ExhibitChart({ exhibitName, evidenceIndex }: { exhibitName: string; evidenceIndex: EvidenceRecord[] }) {
+  // Fuzzy-match exhibit name to an evidence record by metric_label
+  const record = evidenceIndex.find((r) => {
+    const label = r.metric_label.toLowerCase()
+    const name = exhibitName.toLowerCase()
+    // Exact or substring match
+    return label === name || label.includes(name.split(" ").slice(0, 3).join(" ").toLowerCase())
+      || name.includes(label.split(" ").slice(0, 3).join(" ").toLowerCase())
+  }) ?? null
+
+  if (!record) return null
+
+  const mt = record.metric_type
+
+  // Breakdown → horizontal or vertical bar chart
+  if (mt === "breakdown" && record.segments && record.segments.length > 0) {
+    const data = record.segments.map((s) => ({
+      name: s.label,
+      value: typeof s.value === "number" ? s.value : parseFloat(String(s.value)) || 0,
+      pct: Math.round(s.share * 100),
+    }))
+    const isMonthly = data.some((d) =>
+      /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(d.name)
+    )
+
+    return (
+      <div style={{ margin: "24px 0 32px", padding: "20px 24px", background: P.surface, border: `1px solid ${P.border}`, borderRadius: "4px" }}>
+        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "16px" }}>
+          EXHIBIT · {exhibitName.toUpperCase()}
+        </p>
+        <ResponsiveContainer width="100%" height={isMonthly ? 140 : Math.max(80, data.length * 28)}>
+          {isMonthly ? (
+            <LineChart data={data} margin={{ top: 4, right: 12, bottom: 4, left: 0 }}>
+              <XAxis dataKey="name" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: P.faint }} axisLine={false} tickLine={false} />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, background: P.bg, border: `1px solid ${P.border}`, borderRadius: 3 }}
+                formatter={(v: number) => [v.toLocaleString(), ""]}
+                labelStyle={{ color: P.accent }}
+              />
+              <Line type="monotone" dataKey="value" stroke={P.accent} strokeWidth={2} dot={{ fill: P.accent, r: 3 }} activeDot={{ r: 4 }} />
+            </LineChart>
+          ) : (
+            <BarChart data={data} layout="vertical" margin={{ top: 0, right: 48, bottom: 0, left: 0 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: P.muted }} axisLine={false} tickLine={false} width={140} />
+              <Tooltip
+                contentStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, background: P.bg, border: `1px solid ${P.border}`, borderRadius: 3 }}
+                formatter={(v: number) => [v.toLocaleString(), ""]}
+              />
+              <Bar dataKey="value" radius={[0, 2, 2, 0]}>
+                {data.map((_, i) => (
+                  <Cell key={i} fill={i === 0 ? P.accent : "#CBD5E0"} />
+                ))}
+              </Bar>
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+        <p style={{ fontFamily: MONO, fontSize: "8px", color: P.faint, marginTop: "8px", letterSpacing: "0.06em" }}>
+          {record.metric_label} · {record.source_row_count.toLocaleString()} source rows
+        </p>
+      </div>
+    )
+  }
+
+  // Scalar with unit — stat card
+  if (mt === "scalar" && record.value != null) {
+    const display = typeof record.value === "number"
+      ? Number.isInteger(record.value) ? record.value.toLocaleString() : record.value.toFixed(1)
+      : String(record.value)
+    return (
+      <div style={{ margin: "24px 0 32px", padding: "20px 24px", background: P.surface, border: `1px solid ${P.border}`, borderRadius: "4px", display: "flex", alignItems: "baseline", gap: "16px" }}>
+        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, flexShrink: 0 }}>
+          EXHIBIT · {exhibitName.toUpperCase()}
+        </p>
+        <p style={{ fontFamily: SERIF, fontSize: "32px", fontWeight: 700, color: P.accent, lineHeight: 1 }}>
+          {display}
+          {record.unit && <span style={{ fontFamily: MONO, fontSize: "14px", color: P.faint, marginLeft: "6px" }}>{record.unit}</span>}
+        </p>
+        <p style={{ fontFamily: MONO, fontSize: "9px", color: P.muted, lineHeight: 1.5, flexShrink: 0 }}>
+          {record.metric_label}<br />{record.calculation_description.split(".")[0]}.
+        </p>
+      </div>
+    )
+  }
+
+  // Criteria table
+  if (mt === "criteria_table" && record.criteria_rows && record.criteria_rows.length > 0) {
+    return (
+      <div style={{ margin: "24px 0 32px" }}>
+        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "10px" }}>
+          EXHIBIT · {exhibitName.toUpperCase()}
+        </p>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: P.surface }}>
+              {["Criterion", "Target", "Actual", "Status"].map((h) => (
+                <th key={h} style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: P.accent, padding: "8px 12px", textAlign: "left", borderBottom: `1px solid ${P.border}` }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {record.criteria_rows.map((row, i) => {
+              const r = row as Record<string, unknown>
+              const met = r.met === true || r.met === "true"
+              return (
+                <tr key={i} style={{ borderBottom: `1px solid ${P.border}` }}>
+                  <td style={{ fontFamily: MONO, fontSize: "10px", color: P.text, padding: "8px 12px" }}>{String(r.description ?? r.criterion ?? "")}</td>
+                  <td style={{ fontFamily: MONO, fontSize: "10px", color: P.muted, padding: "8px 12px" }}>{String(r.target ?? "")}</td>
+                  <td style={{ fontFamily: MONO, fontSize: "10px", color: P.text, padding: "8px 12px", fontWeight: 600 }}>{String(r.actual ?? "")}</td>
+                  <td style={{ padding: "8px 12px" }}>
+                    <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "2px", background: met ? "rgba(22,163,74,0.1)" : "rgba(192,57,43,0.1)", color: met ? P.success : P.danger }}>
+                      {met ? "PASS" : "FAIL"}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // Evidence drawer — typed renderers per metric_type
 // ---------------------------------------------------------------------------
 
@@ -36,30 +186,30 @@ function EvidenceDrawerDataTable({ rows, totalCount }: { rows: Record<string, un
   const cols = Object.keys(rows[0])
   return (
     <div>
-      <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "8px" }}>
+      <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>
         SOURCE — {totalCount.toLocaleString()} ROWS
       </p>
-      <div style={{ overflowX: "auto", border: "1px solid #E5E4DF" }}>
+      <div style={{ overflowX: "auto", border: `1px solid ${P.border}` }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "#F0EFE9" }}>
+            <tr style={{ background: P.surface }}>
               {cols.map((col) => (
-                <th key={col} style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: "#4C566A", padding: "8px 10px", textAlign: "left", borderBottom: "1px solid #E5E4DF", whiteSpace: "nowrap" }}>{col}</th>
+                <th key={col} style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: P.accent, padding: "8px 10px", textAlign: "left", borderBottom: `1px solid ${P.border}`, whiteSpace: "nowrap" }}>{col}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.slice(0, 5).map((row, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #E5E4DF", background: i % 2 === 0 ? "#FFFFFF" : "#FAFAF7" }}>
+              <tr key={i} style={{ borderBottom: `1px solid ${P.border}`, background: i % 2 === 0 ? "#fff" : P.bg }}>
                 {cols.map((col, j) => (
-                  <td key={j} style={{ fontFamily: MONO, fontSize: "10px", color: "#4B5563", padding: "7px 10px", whiteSpace: "nowrap" }}>{String(row[col] ?? "")}</td>
+                  <td key={j} style={{ fontFamily: MONO, fontSize: "10px", color: "#374151", padding: "7px 10px", whiteSpace: "nowrap" }}>{String(row[col] ?? "")}</td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
         {totalCount > 5 && (
-          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", color: "#9CA3AF", padding: "8px 10px", borderTop: "1px solid #E5E4DF" }}>
+          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", color: P.faint, padding: "8px 10px", borderTop: `1px solid ${P.border}` }}>
             + {(totalCount - 5).toLocaleString()} MORE ROWS
           </p>
         )}
@@ -70,36 +220,33 @@ function EvidenceDrawerDataTable({ rows, totalCount }: { rows: Record<string, un
 
 function EvidenceDrawerContent({ record }: { record: EvidenceRecord }) {
   const mt = record.metric_type
-
   return (
     <div>
       <div style={{ marginBottom: "20px" }}>
-        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "6px" }}>METRIC</p>
-        <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "15px", color: "#1A1A1A", fontWeight: 600 }}>{record.metric_label}</p>
+        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "6px" }}>METRIC</p>
+        <p style={{ fontFamily: SERIF, fontSize: "15px", color: P.text, fontWeight: 600 }}>{record.metric_label}</p>
       </div>
 
-      {/* Scalar: one large number */}
       {mt === "scalar" && record.value != null && (
-        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid #E5E4DF" }}>
-          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "6px" }}>VALUE</p>
-          <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "36px", fontWeight: 700, color: "#4C566A", lineHeight: 1 }}>
+        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: `1px solid ${P.border}` }}>
+          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "6px" }}>VALUE</p>
+          <p style={{ fontFamily: SERIF, fontSize: "36px", fontWeight: 700, color: P.accent, lineHeight: 1 }}>
             {typeof record.value === "number"
               ? Number.isInteger(record.value) ? record.value.toLocaleString() : record.value.toFixed(2)
               : record.value}
-            {record.unit && <span style={{ fontSize: "16px", marginLeft: "6px", color: "#9CA3AF" }}>{record.unit}</span>}
+            {record.unit && <span style={{ fontSize: "16px", marginLeft: "6px", color: P.faint }}>{record.unit}</span>}
           </p>
         </div>
       )}
 
-      {/* Criteria table: pass/fail grid */}
       {mt === "criteria_table" && record.criteria_rows && record.criteria_rows.length > 0 && (
-        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid #E5E4DF" }}>
-          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "10px" }}>SUCCESS CRITERIA</p>
-          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "auto" }}>
+        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: `1px solid ${P.border}` }}>
+          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "10px" }}>SUCCESS CRITERIA</p>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "#F0EFE9" }}>
+              <tr style={{ background: P.surface }}>
                 {["Criterion", "Target", "Actual", "Status"].map((h) => (
-                  <th key={h} style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: "#4C566A", padding: "8px 10px", textAlign: "left", borderBottom: "1px solid #E5E4DF" }}>{h}</th>
+                  <th key={h} style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: P.accent, padding: "8px 10px", textAlign: "left", borderBottom: `1px solid ${P.border}` }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -108,18 +255,12 @@ function EvidenceDrawerContent({ record }: { record: EvidenceRecord }) {
                 const r = row as Record<string, unknown>
                 const met = r.met === true || r.met === "true"
                 return (
-                  <tr key={i} style={{ borderBottom: "1px solid #E5E4DF" }}>
+                  <tr key={i} style={{ borderBottom: `1px solid ${P.border}` }}>
                     <td style={{ fontFamily: MONO, fontSize: "9px", color: "#374151", padding: "8px 10px" }}>{String(r.description ?? r.criterion ?? "")}</td>
                     <td style={{ fontFamily: MONO, fontSize: "9px", color: "#374151", padding: "8px 10px" }}>{String(r.target ?? "")}</td>
                     <td style={{ fontFamily: MONO, fontSize: "9px", color: "#374151", padding: "8px 10px" }}>{String(r.actual ?? "")}</td>
                     <td style={{ padding: "8px 10px" }}>
-                      <span style={{
-                        fontFamily: MONO, fontSize: "8px", fontWeight: 700,
-                        letterSpacing: "0.1em", textTransform: "uppercase",
-                        padding: "2px 8px",
-                        background: met ? "#D1FAE5" : "#FEE2E2",
-                        color: met ? "#065F46" : "#991B1B",
-                      }}>
+                      <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", background: met ? "rgba(22,163,74,0.1)" : "rgba(192,57,43,0.1)", color: met ? P.success : P.danger }}>
                         {met ? "PASS" : "FAIL"}
                       </span>
                     </td>
@@ -131,37 +272,34 @@ function EvidenceDrawerContent({ record }: { record: EvidenceRecord }) {
         </div>
       )}
 
-      {/* Breakdown: horizontal bar chart */}
       {mt === "breakdown" && record.segments && record.segments.length > 0 && (
-        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid #E5E4DF" }}>
-          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "10px" }}>BREAKDOWN</p>
+        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: `1px solid ${P.border}` }}>
+          <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "10px" }}>BREAKDOWN</p>
           {record.segments.map((seg, i) => (
             <div key={i} style={{ marginBottom: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
                 <span style={{ fontFamily: MONO, fontSize: "9px", color: "#374151" }}>{seg.label}</span>
-                <span style={{ fontFamily: MONO, fontSize: "9px", color: "#4C566A", fontWeight: 700 }}>
-                  {typeof seg.value === "number" && Number.isInteger(seg.value) ? seg.value.toLocaleString() : seg.value.toFixed ? seg.value.toFixed(2) : seg.value}
-                  <span style={{ color: "#9CA3AF", marginLeft: "6px" }}>({(seg.share * 100).toFixed(1)}%)</span>
+                <span style={{ fontFamily: MONO, fontSize: "9px", color: P.accent, fontWeight: 700 }}>
+                  {typeof seg.value === "number" && Number.isInteger(seg.value) ? seg.value.toLocaleString() : typeof seg.value === "number" ? seg.value.toFixed(2) : seg.value}
+                  <span style={{ color: P.faint, marginLeft: "6px" }}>({(seg.share * 100).toFixed(1)}%)</span>
                 </span>
               </div>
-              <div style={{ height: "4px", background: "#E5E4DF", borderRadius: "2px" }}>
-                <div style={{ height: "100%", width: `${Math.min(seg.share * 100, 100)}%`, background: "#4C566A", borderRadius: "2px" }} />
+              <div style={{ height: "4px", background: P.border, borderRadius: "2px" }}>
+                <div style={{ height: "100%", width: `${Math.min(seg.share * 100, 100)}%`, background: P.accent, borderRadius: "2px" }} />
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Row list: paginated table */}
       {mt === "row_list" && record.rows && (
-        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: "1px solid #E5E4DF" }}>
+        <div style={{ marginBottom: "20px", paddingBottom: "20px", borderBottom: `1px solid ${P.border}` }}>
           <EvidenceDrawerDataTable rows={record.rows} totalCount={record.source_row_count} />
         </div>
       )}
 
-      {/* Calculation */}
       <div style={{ marginBottom: "20px" }}>
-        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "6px" }}>CALCULATION</p>
+        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "6px" }}>CALCULATION</p>
         <p style={{ fontFamily: MONO, fontSize: "11px", lineHeight: 1.7, color: "#4B5563" }}>{record.calculation_description}</p>
       </div>
     </div>
@@ -181,43 +319,42 @@ function EvidenceDrawer({ evidenceId, briefId, onClose }: { evidenceId: string |
       .catch((e) => { setErr(e instanceof Error ? e.message : "Not found."); setLoading(false) })
   }, [evidenceId, briefId])
 
-  // Close on Esc
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
-    document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", h)
+    return () => document.removeEventListener("keydown", h)
   }, [onClose])
 
   const open = !!evidenceId
 
   return (
     <>
-      {open && <div style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(26,26,26,0.3)" }} onClick={onClose} />}
+      {open && <div style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)" }} onClick={onClose} />}
       <div style={{
         position: "fixed", top: 0, right: 0, height: "100%", zIndex: 50,
-        width: "480px", background: "#FAFAF7", borderLeft: "1px solid #E5E4DF",
+        width: "480px", background: P.bg, borderLeft: `1px solid ${P.border}`,
         display: "flex", flexDirection: "column",
         transform: open ? "translateX(0)" : "translateX(100%)",
         transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
       }}>
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid #E5E4DF", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ padding: "20px 24px", borderBottom: `1px solid ${P.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "4px" }}>EVIDENCE RECORD</p>
-            {record && <p style={{ fontFamily: MONO, fontSize: "13px", fontWeight: 700, letterSpacing: "0.06em", color: "#4C566A" }}>{evidenceId}</p>}
+            <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint, marginBottom: "4px" }}>EVIDENCE RECORD</p>
+            {record && <p style={{ fontFamily: MONO, fontSize: "13px", fontWeight: 700, letterSpacing: "0.06em", color: P.accent }}>{evidenceId}</p>}
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "1px solid #E5E4DF", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+          <button onClick={onClose} style={{ background: "none", border: `1px solid ${P.border}`, width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", borderRadius: "3px" }}>
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="#4C566A" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke={P.accent} strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
           {loading && (
             <div style={{ display: "flex", justifyContent: "center", padding: "40px 0" }}>
-              <div style={{ width: "20px", height: "20px", border: "2px solid #E5E4DF", borderTopColor: "#4C566A", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              <div style={{ width: "20px", height: "20px", border: `2px solid ${P.border}`, borderTopColor: P.accent, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
             </div>
           )}
-          {err && <p style={{ fontFamily: MONO, fontSize: "10px", color: "#C0392B" }}>{err}</p>}
+          {err && <p style={{ fontFamily: MONO, fontSize: "10px", color: P.danger }}>{err}</p>}
           {record && !loading && <EvidenceDrawerContent record={record} />}
         </div>
       </div>
@@ -257,31 +394,33 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 
   return (
     <>
-      <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(26,26,26,0.5)" }} onClick={onClose} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.5)" }} onClick={onClose} />
       <div style={{
-        position: "fixed", zIndex: 60, background: "#FAFAF7", border: "1px solid #E5E4DF",
+        position: "fixed", zIndex: 60, background: P.bg, border: `1px solid ${P.border}`,
+        borderRadius: "6px",
         top: "50%", left: "50%", transform: "translate(-50%, -50%)",
         width: "min(580px, 92vw)", maxHeight: "80vh",
         display: "flex", flexDirection: "column",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
       }}>
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid #E5E4DF", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div style={{ padding: "20px 24px", borderBottom: `1px solid ${P.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
-            <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.2em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "4px" }}>REWRITE SECTION</p>
-            <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "15px", color: "#1A1A1A", fontWeight: 600 }}>{section.headline}</p>
+            <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint, marginBottom: "4px" }}>REWRITE SECTION</p>
+            <p style={{ fontFamily: SERIF, fontSize: "15px", color: P.text, fontWeight: 600 }}>{section.headline}</p>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "1px solid #E5E4DF", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="#4C566A" strokeWidth="1.5" strokeLinecap="round" /></svg>
+          <button onClick={onClose} style={{ background: "none", border: `1px solid ${P.border}`, width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, borderRadius: "3px" }}>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke={P.accent} strokeWidth="1.5" strokeLinecap="round" /></svg>
           </button>
         </div>
-        <div style={{ display: "flex", borderBottom: "1px solid #E5E4DF" }}>
+        <div style={{ display: "flex", borderBottom: `1px solid ${P.border}` }}>
           {(["steer", "prompt"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: "10px 20px", background: "none", cursor: "pointer",
               fontFamily: MONO, fontSize: "9px", fontWeight: 700,
               letterSpacing: "0.14em", textTransform: "uppercase",
-              color: tab === t ? "#1A1A1A" : "#9CA3AF",
+              color: tab === t ? P.text : P.faint,
               border: "none",
-              borderBottom: tab === t ? "2px solid #4C566A" : "2px solid transparent",
+              borderBottom: tab === t ? `2px solid ${P.accent}` : "2px solid transparent",
             }}>
               {t === "steer" ? "STEER REWRITE" : "VIEW PROMPT"}
             </button>
@@ -290,45 +429,47 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
         <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
           {tab === "steer" && (
             <div>
-              <p style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.7, color: "#6B7280", marginBottom: "16px" }}>
+              <p style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.7, color: P.muted, marginBottom: "16px" }}>
                 Describe what you want different. The AI will rewrite this section with your note as steering.
               </p>
               <textarea value={steering} onChange={(e) => setSteering(e.target.value)}
                 placeholder="e.g. Lead with the credential submission risk. Avoid mentioning department names. Close with a direct budget ask."
                 rows={5} style={{
-                  width: "100%", padding: "12px", background: "#FFFFFF",
-                  border: "1px solid #E5E4DF", fontFamily: MONO, fontSize: "11px",
-                  color: "#1A1A1A", lineHeight: 1.6, resize: "none",
+                  width: "100%", padding: "12px", background: "#fff",
+                  border: `1px solid ${P.border}`, borderRadius: "4px",
+                  fontFamily: MONO, fontSize: "11px",
+                  color: P.text, lineHeight: 1.6, resize: "none",
                   outline: "none", boxSizing: "border-box",
                 }} />
-              {error && <p style={{ fontFamily: MONO, fontSize: "9px", color: "#C0392B", marginTop: "8px" }}>{error}</p>}
+              {error && <p style={{ fontFamily: MONO, fontSize: "9px", color: P.danger, marginTop: "8px" }}>{error}</p>}
             </div>
           )}
           {tab === "prompt" && (
             <div>
-              {loadingPrompt && <div style={{ display: "flex", justifyContent: "center", padding: "32px" }}><div style={{ width: "18px", height: "18px", border: "2px solid #E5E4DF", borderTopColor: "#4C566A", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /></div>}
+              {loadingPrompt && <div style={{ display: "flex", justifyContent: "center", padding: "32px" }}><div style={{ width: "18px", height: "18px", border: `2px solid ${P.border}`, borderTopColor: P.accent, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /></div>}
               {promptData && !loadingPrompt && (
                 <div>
-                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "8px" }}>SYSTEM PROMPT</p>
-                  <pre style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.65, padding: "12px", background: "#F0EFE9", overflowX: "auto", whiteSpace: "pre-wrap", color: "#374151", marginBottom: "20px" }}>{promptData.system_prompt}</pre>
-                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "8px" }}>USER PROMPT (RENDERED)</p>
-                  <pre style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.65, padding: "12px", background: "#F0EFE9", overflowX: "auto", whiteSpace: "pre-wrap", color: "#374151" }}>{promptData.user_prompt}</pre>
+                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>SYSTEM PROMPT</p>
+                  <pre style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.65, padding: "12px", background: P.surface, borderRadius: "3px", overflowX: "auto", whiteSpace: "pre-wrap", color: "#374151", marginBottom: "20px" }}>{promptData.system_prompt}</pre>
+                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>USER PROMPT (RENDERED)</p>
+                  <pre style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.65, padding: "12px", background: P.surface, borderRadius: "3px", overflowX: "auto", whiteSpace: "pre-wrap", color: "#374151" }}>{promptData.user_prompt}</pre>
                 </div>
               )}
             </div>
           )}
         </div>
-        <div style={{ padding: "16px 24px", borderTop: "1px solid #E5E4DF", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: MONO, fontSize: "9px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF" }}>CANCEL</button>
+        <div style={{ padding: "16px 24px", borderTop: `1px solid ${P.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: MONO, fontSize: "9px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint }}>CANCEL</button>
           <button onClick={handleRegenerate} disabled={regenerating} style={{
             display: "inline-flex", alignItems: "center", gap: "8px",
-            padding: "10px 24px", background: "#1A1A1A", color: "#FAFAF7",
+            padding: "10px 24px", background: P.accent, color: "#fff",
             fontFamily: MONO, fontSize: "9px", fontWeight: 700,
             letterSpacing: "0.14em", textTransform: "uppercase",
-            border: "none", cursor: regenerating ? "not-allowed" : "pointer",
+            border: "none", borderRadius: "3px",
+            cursor: regenerating ? "not-allowed" : "pointer",
             opacity: regenerating ? 0.6 : 1,
           }}>
-            {regenerating && <div style={{ width: "10px", height: "10px", border: "1.5px solid rgba(255,255,255,0.3)", borderTopColor: "#FAFAF7", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
+            {regenerating && <div style={{ width: "10px", height: "10px", border: "1.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
             {regenerating ? "REWRITING…" : tab === "steer" && steering ? "REWRITE WITH NOTE" : "REWRITE SECTION"}
           </button>
         </div>
@@ -341,8 +482,9 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 // Section block
 // ---------------------------------------------------------------------------
 
-function SectionBlock({ section, index, briefId, onChip, onRegenerated }: {
+function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegenerated }: {
   section: BriefSection; index: number; briefId: string
+  evidenceIndex: EvidenceRecord[]
   onChip: (id: string) => void; onRegenerated: (s: BriefSection) => void
 }) {
   const [steerOpen, setSteerOpen] = useState(false)
@@ -357,53 +499,58 @@ function SectionBlock({ section, index, briefId, onChip, onRegenerated }: {
 
   return (
     <>
-      <section style={{ opacity: rewriting ? 0.5 : 1, transition: "opacity 0.2s", position: "relative" }} className="brief-section">
-        {/* Section number in margin */}
-        <div style={{ display: "flex", gap: "0", alignItems: "flex-start" }}>
-          <div style={{ width: "72px", flexShrink: 0, paddingTop: "4px" }}>
-            <span style={{ fontFamily: MONO, fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: "#D1CFC6" }}>
+      <section style={{ opacity: rewriting ? 0.5 : 1, transition: "opacity 0.2s" }} className="brief-section">
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "0" }}>
+          {/* Section number in margin */}
+          <div style={{ width: "64px", flexShrink: 0, paddingTop: "5px" }}>
+            <span style={{ fontFamily: MONO, fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: P.border }}>
               {String(index + 1).padStart(2, "0")}
             </span>
           </div>
+
           <div style={{ flex: 1 }}>
-            {/* Headline row */}
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", marginBottom: "16px" }}>
-              <h2 style={{
-                fontFamily: "var(--font-source-serif), Georgia, serif",
-                fontSize: "22px", fontWeight: 700, lineHeight: 1.3,
-                color: "#1A1A1A", letterSpacing: "-0.01em",
-              }}>
+            {/* Headline row with hover actions */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", marginBottom: "14px" }}>
+              <h2 style={{ fontFamily: SERIF, fontSize: "21px", fontWeight: 700, lineHeight: 1.35, color: P.text, letterSpacing: "-0.01em" }}>
                 {section.headline}
               </h2>
-              {/* Hover actions */}
-              <div className="section-actions" style={{ display: "flex", gap: "6px", flexShrink: 0, marginTop: "2px" }}>
-                <button onClick={() => setSteerOpen(true)} title="Edit prompt / steer rewrite" style={{
-                  width: "28px", height: "28px", background: "none", border: "1px solid #E5E4DF",
-                  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+              <div className="section-actions" style={{ display: "flex", gap: "4px", flexShrink: 0, marginTop: "2px" }}>
+                <button onClick={() => setSteerOpen(true)} title="Steer rewrite" style={{
+                  width: "26px", height: "26px", background: "none", border: `1px solid ${P.border}`,
+                  borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                 }}>
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M8.5 1.5a1.414 1.414 0 112 2L4 10H2v-2l6.5-6.5z" stroke="#4C566A" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M8.5 1.5a1.414 1.414 0 112 2L4 10H2v-2l6.5-6.5z" stroke={P.accent} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
-                <button onClick={handleQuickRegen} disabled={rewriting} title="Regenerate section" style={{
-                  width: "28px", height: "28px", background: "none", border: "1px solid #E5E4DF",
-                  display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                <button onClick={handleQuickRegen} disabled={rewriting} title="Regenerate" style={{
+                  width: "26px", height: "26px", background: "none", border: `1px solid ${P.border}`,
+                  borderRadius: "3px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                 }}>
                   {rewriting ? (
-                    <div style={{ width: "10px", height: "10px", border: "1.5px solid #E5E4DF", borderTopColor: "#4C566A", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                    <div style={{ width: "10px", height: "10px", border: `1.5px solid ${P.border}`, borderTopColor: P.accent, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
                   ) : (
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                      <path d="M10.5 2C9.5.8 8 0 6.5 0A6.5 6.5 0 000 6.5h1.5A5 5 0 016.5 1.5c1.1 0 2.2.4 3 1.1L7.5 5H12V0L10.5 2z" fill="#4C566A" />
-                      <path d="M10.5 6.5A5 5 0 016.5 11c-1.1 0-2.2-.4-3-1.1L5.5 7H1v5l1.5-2C3.5 11.2 5 12 6.5 12A6.5 6.5 0 0013 5.5H10.5z" fill="#4C566A" />
+                    <svg width="11" height="11" viewBox="0 0 14 14" fill="none">
+                      <path d="M12 2.5A6 6 0 1 1 7 1M7 1l2 2-2 2" stroke={P.accent} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}
                 </button>
               </div>
             </div>
-            {/* Content */}
-            <div style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "16px", lineHeight: 1.85, color: "#374151" }}>
+
+            {/* Prose */}
+            <div style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.9, color: "#374151" }}>
               {parseContent(section.content, onChip)}
             </div>
+
+            {/* Exhibits */}
+            {section.exhibits && section.exhibits.length > 0 && evidenceIndex.length > 0 && (
+              <div>
+                {section.exhibits.map((exhibitName, ei) => (
+                  <ExhibitChart key={ei} exhibitName={exhibitName} evidenceIndex={evidenceIndex} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -422,40 +569,196 @@ function SectionBlock({ section, index, briefId, onChip, onRegenerated }: {
 // ---------------------------------------------------------------------------
 
 function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; index: number }) {
-  const r = rec as Record<string, string | undefined>
+  const r = rec as Record<string, string | string[] | undefined>
+  const priority = r.priority as string | undefined
+  const urgency = r.urgency_signal as string | undefined
+
+  const priorityColor = priority === "critical" ? P.danger : priority === "high" ? "#C05621" : P.muted
+
   return (
-    <div style={{ display: "flex", gap: "0", borderBottom: "1px solid #E5E4DF", padding: "24px 0" }}>
-      <div style={{ width: "72px", flexShrink: 0 }}>
-        <span style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "28px", fontWeight: 700, color: "#E5E4DF", lineHeight: 1 }}>
+    <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${P.border}`, padding: "24px 0" }}>
+      <div style={{ width: "64px", flexShrink: 0, paddingTop: "2px" }}>
+        <span style={{ fontFamily: SERIF, fontSize: "26px", fontWeight: 700, color: P.border, lineHeight: 1 }}>
           {index + 1}
         </span>
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", marginBottom: "10px" }}>
-          <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "17px", fontWeight: 700, color: "#1A1A1A", flex: 1, lineHeight: 1.4 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
+          <p style={{ fontFamily: SERIF, fontSize: "17px", fontWeight: 700, color: P.text, flex: 1, lineHeight: 1.4 }}>
             {r.action ?? r.title ?? ""}
           </p>
-          {(r.ask_type || r.commercial_angle) && (
-            <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", padding: "4px 10px", background: "#F0EFE9", color: "#4C566A", flexShrink: 0, border: "1px solid #E5E4DF" }}>
-              {r.ask_type ?? r.commercial_angle}
-            </span>
-          )}
+          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+            {(r.ask_type ?? r.commercial_angle) && (
+              <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 8px", background: P.surface, color: P.accent, border: `1px solid ${P.border}`, borderRadius: "2px" }}>
+                {r.ask_type ?? r.commercial_angle}
+              </span>
+            )}
+            {priority && (
+              <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 8px", background: P.surface, color: priorityColor, border: `1px solid ${P.border}`, borderRadius: "2px" }}>
+                {priority}
+              </span>
+            )}
+          </div>
         </div>
-        {r.gap && <p style={{ fontFamily: MONO, fontSize: "10px", color: "#9CA3AF", marginBottom: "8px" }}>GAP: {r.gap}</p>}
+
+        {r.urgency_context && (
+          <p style={{ fontFamily: MONO, fontSize: "9px", color: urgency === "persistent" ? P.danger : P.muted, marginBottom: "8px", lineHeight: 1.5, display: "flex", alignItems: "center", gap: "6px" }}>
+            <span style={{ opacity: 0.6 }}>
+              {urgency === "persistent" ? "▲" : urgency === "emerging" ? "→" : "●"}
+            </span>
+            {r.urgency_context}
+          </p>
+        )}
+
+        {r.gap && (
+          <p style={{ fontFamily: MONO, fontSize: "9px", color: P.muted, marginBottom: "10px", lineHeight: 1.5 }}>
+            <span style={{ color: P.faint, marginRight: "6px", letterSpacing: "0.1em", textTransform: "uppercase", fontSize: "8px" }}>GAP</span>
+            {r.gap}
+          </p>
+        )}
+
         {r.expected_impact && (
-          <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginBottom: "6px" }}>
-            <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF", marginRight: "8px" }}>IMPACT</span>
+          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginBottom: "6px" }}>
+            <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint, marginRight: "8px" }}>IMPACT</span>
             {r.expected_impact}
           </p>
         )}
-        {r.rationale_chain && <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "14px", lineHeight: 1.65, color: "#6B7280", fontStyle: "italic" }}>{r.rationale_chain}</p>}
+
+        {Array.isArray(r.rationale_chain) ? (
+          <ol style={{ margin: "8px 0", paddingLeft: "16px" }}>
+            {(r.rationale_chain as string[]).map((step, i) => (
+              <li key={i} style={{ fontFamily: SERIF, fontSize: "13px", lineHeight: 1.6, color: P.muted, marginBottom: "4px" }}>{step}</li>
+            ))}
+          </ol>
+        ) : r.rationale_chain ? (
+          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: P.muted, fontStyle: "italic" }}>{String(r.rationale_chain)}</p>
+        ) : null}
+
         {r.next_step && (
-          <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginTop: "6px" }}>
-            <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF", marginRight: "8px" }}>NEXT</span>
+          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginTop: "8px" }}>
+            <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint, marginRight: "8px" }}>NEXT</span>
             {r.next_step}
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Action rail (fixed right sidebar)
+// ---------------------------------------------------------------------------
+
+function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
+  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    onCopy()
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const rawBrief = brief as unknown as Record<string, unknown>
+  const critique = rawBrief.critique as Record<string, unknown> | undefined
+  const score = typeof critique?.narrative_score === "number" ? critique.narrative_score : null
+
+  const railActions = [
+    {
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M9.5 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5L9.5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+      label: copied ? "COPIED" : "COPY MD",
+      onClick: handleCopy,
+      active: copied,
+    },
+    {
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      ),
+      label: "PRINT PDF",
+      href: `/brief/${briefId}/print`,
+    },
+    {
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1l2 4h4l-3.5 2.5 1.5 4L7 9l-4 2.5 1.5-4L1 5h4l2-4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+      label: brief.audience === "ciso" ? "→ CSM" : "→ CISO",
+      onClick: onAudienceToggle,
+    },
+  ]
+
+  return (
+    <div style={{
+      position: "fixed",
+      right: "20px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      zIndex: 20,
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      alignItems: "flex-end",
+    }}>
+      {/* Narrative score badge */}
+      {score !== null && (
+        <div style={{
+          padding: "6px 10px",
+          background: "var(--bg-surface)",
+          border: `1px solid ${score >= 80 ? "rgba(74,222,128,0.3)" : score >= 60 ? "rgba(251,191,36,0.3)" : "rgba(239,68,68,0.3)"}`,
+          borderRadius: "4px",
+          marginBottom: "4px",
+          textAlign: "center",
+        }}>
+          <p style={{ fontFamily: MONO, fontSize: "16px", fontWeight: 700, color: score >= 80 ? "var(--success)" : score >= 60 ? "var(--warning)" : "var(--danger)", lineHeight: 1, marginBottom: "2px" }}>
+            {score}
+          </p>
+          <p style={{ fontFamily: MONO, fontSize: "7px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>QUALITY</p>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {railActions.map((action) => {
+        const style = {
+          display: "flex",
+          alignItems: "center",
+          gap: "7px",
+          padding: "8px 12px",
+          background: action.active ? "var(--accent)" : "var(--bg-surface)",
+          border: `1px solid ${action.active ? "var(--accent)" : "var(--border-strong)"}`,
+          borderRadius: "4px",
+          cursor: "pointer" as const,
+          color: action.active ? "#fff" : "var(--text-secondary)",
+          fontFamily: MONO,
+          fontSize: "8px",
+          fontWeight: 700,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase" as const,
+          textDecoration: "none",
+          transition: "background 0.15s, border-color 0.15s",
+          whiteSpace: "nowrap" as const,
+        }
+        if (action.href) {
+          return (
+            <Link key={action.label} href={action.href} target="_blank" style={style}>
+              {action.icon}{action.label}
+            </Link>
+          )
+        }
+        return (
+          <button key={action.label} onClick={action.onClick} style={style}>
+            {action.icon}{action.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -471,14 +774,24 @@ export default function BriefPage() {
 
   const [brief, setBrief] = useState<Brief | null>(null)
   const [rawBrief, setRawBrief] = useState<Record<string, unknown>>({})
+  const [evidenceIndex, setEvidenceIndex] = useState<EvidenceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeEvidence, setActiveEvidence] = useState<string | null>(null)
 
   useEffect(() => {
-    getBrief(briefId)
-      .then((data) => { setRawBrief(data); setBrief(data as unknown as Brief); setLoading(false) })
-      .catch((e) => { setError(e instanceof Error ? e.message : "Brief not found."); setLoading(false) })
+    Promise.all([
+      getBrief(briefId),
+      getBriefEvidenceIndex(briefId).catch(() => []),
+    ]).then(([data, index]) => {
+      setRawBrief(data)
+      setBrief(data as unknown as Brief)
+      setEvidenceIndex(index)
+      setLoading(false)
+    }).catch((e) => {
+      setError(e instanceof Error ? e.message : "Brief not found.")
+      setLoading(false)
+    })
   }, [briefId])
 
   const handleChip = useCallback((id: string) => setActiveEvidence(id), [])
@@ -525,7 +838,7 @@ export default function BriefPage() {
     <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <p style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--danger)", marginBottom: "16px" }}>{error ?? "BRIEF NOT FOUND"}</p>
-        <Link href="/ingest" style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px" }}>START OVER</Link>
+        <Link href="/" style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px" }}>HOME</Link>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -539,7 +852,7 @@ export default function BriefPage() {
         .brief-section:hover .section-actions { opacity: 1; }
       `}</style>
 
-      {/* Sticky header — dark chrome */}
+      {/* Dark chrome header */}
       <header style={{
         position: "sticky", top: 0, zIndex: 30, background: "var(--bg-page)",
         borderBottom: "1px solid var(--border-subtle)",
@@ -558,125 +871,115 @@ export default function BriefPage() {
           }}>
             {brief.audience === "ciso" ? "CISO" : "CSM QBR"}
           </span>
+          <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
+            {brief.period}
+          </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {[
-            { label: `SWITCH TO ${brief.audience === "ciso" ? "CSM" : "CISO"}`, onClick: handleAudienceToggle },
-            { label: "COPY MARKDOWN", onClick: handleCopy },
-          ].map(({ label, onClick }) => (
-            <button key={label} onClick={onClick} style={{
-              fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em",
-              textTransform: "uppercase", padding: "8px 14px",
-              background: "none", border: "1px solid var(--border-strong)", color: "var(--text-secondary)", cursor: "pointer", borderRadius: "3px",
-            }}>{label}</button>
-          ))}
-          <Link href={`/brief/${briefId}/print`} target="_blank" style={{
-            fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em",
-            textTransform: "uppercase", padding: "8px 14px",
-            background: "none", border: "1px solid var(--border-strong)", color: "var(--text-secondary)",
-            textDecoration: "none", display: "inline-block", borderRadius: "3px",
-          }}>PRINT PDF</Link>
-        </div>
+        <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
+          {brief.sections.length} SECTIONS · {brief.recommendations.length} RECS
+        </span>
       </header>
 
-      {/* Brief body — light paper */}
-      <main style={{ maxWidth: "800px", margin: "0 auto", padding: "80px 48px" }}>
+      {/* Paper document — white card on dark background */}
+      <div style={{ maxWidth: "860px", margin: "48px auto 80px", padding: "0 24px" }}>
+        <div style={{ background: P.bg, boxShadow: "0 4px 40px rgba(0,0,0,0.25)", borderRadius: "2px" }}>
+          <div style={{ padding: "80px 80px 72px" }}>
 
-        {/* Masthead */}
-        <div style={{ marginBottom: "64px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px" }}>
-            <div style={{ flex: 1, height: "1px", background: "#4C566A" }} />
-            <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.24em", textTransform: "uppercase", color: "#4C566A" }}>
-              INTELLIGENCE BRIEF · {brief.period}
-            </span>
-            <div style={{ flex: 1, height: "1px", background: "#4C566A" }} />
-          </div>
-
-          <h1 style={{
-            fontFamily: "var(--font-source-serif), Georgia, serif",
-            fontSize: "clamp(40px, 5vw, 60px)", fontWeight: 700,
-            lineHeight: 1.05, letterSpacing: "-0.02em",
-            color: "#1A1A1A", marginBottom: "40px",
-          }}>
-            {brief.company_name}
-          </h1>
-
-          {/* Thesis — styled as a lede */}
-          <div style={{ borderLeft: "3px solid #4C566A", paddingLeft: "28px", marginLeft: "0" }}>
-            <p style={{
-              fontFamily: "var(--font-source-serif), Georgia, serif",
-              fontSize: "20px", lineHeight: 1.7, color: "#1A1A1A",
-              fontStyle: "italic", fontWeight: 400,
-            }}>
-              {brief.thesis}
-            </p>
-          </div>
-        </div>
-
-        {/* Rule */}
-        <div style={{ height: "1px", background: "#E5E4DF", marginBottom: "64px" }} />
-
-        {/* Sections */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "52px", marginBottom: "72px" }}>
-          {brief.sections.map((section, i) => (
-            <SectionBlock key={section.id} section={section} index={i} briefId={briefId} onChip={handleChip} onRegenerated={handleSectionRegenerated} />
-          ))}
-        </div>
-
-        {/* Recommendations */}
-        {brief.recommendations.length > 0 && (
-          <div style={{ marginBottom: "64px" }}>
-            <div style={{ height: "1px", background: "#E5E4DF", marginBottom: "40px" }} />
-            <div style={{ display: "flex", alignItems: "baseline", gap: "24px", marginBottom: "0" }}>
-              <div style={{ width: "72px", flexShrink: 0 }}>
-                <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.2em", textTransform: "uppercase", color: "#9CA3AF" }}>REC.</span>
+            {/* Masthead */}
+            <div style={{ marginBottom: "64px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "40px" }}>
+                <div style={{ flex: 1, height: "1px", background: P.accent }} />
+                <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase", color: P.accent }}>
+                  INTELLIGENCE BRIEF · {brief.period}
+                </span>
+                <div style={{ flex: 1, height: "1px", background: P.accent }} />
               </div>
-              <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#9CA3AF" }}>
-                RECOMMENDATIONS — {brief.recommendations.length} ACTIONS
-              </p>
+
+              <h1 style={{
+                fontFamily: SERIF,
+                fontSize: "clamp(40px, 5vw, 64px)", fontWeight: 700,
+                lineHeight: 1.02, letterSpacing: "-0.025em",
+                color: P.text, marginBottom: "36px",
+              }}>
+                {brief.company_name}
+              </h1>
+
+              {/* Thesis lede */}
+              <blockquote style={{
+                margin: 0,
+                borderLeft: `3px solid ${P.accent}`,
+                paddingLeft: "28px",
+              }}>
+                <p style={{
+                  fontFamily: SERIF,
+                  fontSize: "19px", lineHeight: 1.75, color: P.text,
+                  fontStyle: "italic", fontWeight: 400,
+                }}>
+                  {brief.thesis}
+                </p>
+              </blockquote>
             </div>
-            {brief.recommendations.map((rec, i) => (
-              <RecommendationCard key={i} rec={rec} index={i} />
-            ))}
-          </div>
-        )}
 
-        {/* Risks */}
-        {brief.risks && brief.risks.length > 0 && (
-          <div style={{ marginBottom: "64px" }}>
-            <div style={{ height: "1px", background: "#E5E4DF", marginBottom: "32px" }} />
-            <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "20px", marginLeft: "72px" }}>
-              RISK FLAGS
-            </p>
-            {brief.risks.map((risk, i) => (
-              <div key={i} style={{ display: "flex", gap: "0", borderBottom: "1px solid #E5E4DF", padding: "16px 0" }}>
-                <div style={{ width: "72px", flexShrink: 0 }}>
-                  <span style={{ fontFamily: MONO, fontSize: "10px", color: "#C0392B" }}>▲</span>
-                </div>
-                <div>
-                  <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "15px", fontWeight: 600, color: "#1A1A1A", marginBottom: "4px" }}>
-                    {String(risk.title ?? risk.risk ?? "")}
+            {/* Divider */}
+            <div style={{ height: "1px", background: P.border, marginBottom: "64px" }} />
+
+            {/* Sections */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "56px", marginBottom: "80px" }}>
+              {brief.sections.map((section, i) => (
+                <SectionBlock
+                  key={section.id}
+                  section={section}
+                  index={i}
+                  briefId={briefId}
+                  evidenceIndex={evidenceIndex}
+                  onChip={handleChip}
+                  onRegenerated={handleSectionRegenerated}
+                />
+              ))}
+            </div>
+
+            {/* Recommendations */}
+            {brief.recommendations.length > 0 && (
+              <div style={{ marginBottom: "72px" }}>
+                <div style={{ height: "1px", background: P.border, marginBottom: "40px" }} />
+                <div style={{ display: "flex", alignItems: "baseline", gap: "20px", marginBottom: "4px" }}>
+                  <div style={{ width: "64px", flexShrink: 0 }}>
+                    <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint }}>REC.</span>
+                  </div>
+                  <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint }}>
+                    RECOMMENDATIONS — {brief.recommendations.length} ACTIONS
                   </p>
-                  {risk.description != null && (
-                    <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "14px", color: "#6B7280", lineHeight: 1.6 }}>{String(risk.description)}</p>
-                  )}
                 </div>
+                {brief.recommendations.map((rec, i) => (
+                  <RecommendationCard key={i} rec={rec as Record<string, unknown>} index={i} />
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {/* Signature */}
-        <div style={{ height: "1px", background: "#E5E4DF", marginBottom: "24px" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF" }}>
-            ABNORMAL BRIEF STUDIO · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
-          </span>
-          <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF" }}>
-            {brief.sections.length} SECTIONS · {brief.recommendations.length} RECOMMENDATIONS
-          </span>
+            {/* Closing ask */}
+            {(rawBrief.closing_ask as string) && (
+              <div style={{ marginBottom: "56px", padding: "24px 28px", background: P.surface, borderLeft: `3px solid ${P.accent}`, borderRadius: "0 4px 4px 0" }}>
+                <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>CLOSING ASK</p>
+                <p style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.7, color: P.text, fontWeight: 500 }}>{String(rawBrief.closing_ask)}</p>
+              </div>
+            )}
+
+            {/* Signature */}
+            <div style={{ height: "1px", background: P.border, marginBottom: "20px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint }}>
+                ABNORMAL BRIEF STUDIO · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
+              </span>
+              <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint }}>
+                CLAUDE SONNET 4.6 · 6-STAGE PIPELINE
+              </span>
+            </div>
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Fixed action rail */}
+      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} />
 
       {/* Evidence drawer */}
       <EvidenceDrawer evidenceId={activeEvidence} briefId={briefId} onClose={() => setActiveEvidence(null)} />
