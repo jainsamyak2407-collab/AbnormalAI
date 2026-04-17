@@ -14,4 +14,56 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Consistent focus ring */
+  :focus-visible {
+    outline: 2px solid #4C566A;
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-source-serif), Georgia, serif;
+  }
+
+  /* Evidence chip: desaturated mustard, small caps */
+  .chip-evidence {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 6px;
+    height: 18px;
+    border-radius: 3px;
+    background: #F0E9CC;
+    color: #7A6B3A;
+    font-size: 10px;
+    font-variant: small-caps;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .chip-evidence:hover {
+    background: #E8DFB8;
+  }
+
+  /* Schema badge */
+  .chip-schema {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #E6F4EA;
+    color: #2D6A4F;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* Divider rule */
+  .rule {
+    border: none;
+    border-top: 1px solid #E5E4DF;
+  }
 }

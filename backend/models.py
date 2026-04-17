@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -60,10 +60,36 @@ class Brief(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class EvidenceRecord(BaseModel):
+class CriterionRow(BaseModel):
+    criterion: str
+    target: Any
+    actual: Any
+    met: bool
+    description: Optional[str] = None
+
+
+class BreakdownSegment(BaseModel):
+    label: str
+    value: float
+    share: float
+
+
+class EvidenceResponse(BaseModel):
     evidence_id: str
-    metric_name: str
-    value: float | str
-    calculation: str
+    metric_label: str
+    metric_type: Literal["scalar", "criteria_table", "row_list", "breakdown"]
+    calculation_description: str
     source_row_count: int
-    source_rows: list[dict] = Field(default_factory=list)
+    # scalar
+    value: Optional[Any] = None
+    unit: Optional[str] = None
+    # criteria_table
+    criteria_rows: Optional[list[dict]] = None
+    # row_list
+    rows: Optional[list[dict]] = None
+    # breakdown
+    segments: Optional[list[BreakdownSegment]] = None
+
+
+# Keep legacy name so existing imports don't break
+EvidenceRecord = EvidenceResponse

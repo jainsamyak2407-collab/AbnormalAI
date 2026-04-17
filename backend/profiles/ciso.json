@@ -1,1 +1,88 @@
-{}
+{
+  "audience": "ciso",
+  "title": "Chief Information Security Officer",
+  "tone": "executive, declarative, restrained",
+  "narrative_arc": [
+    "risk_posture",
+    "protection_effectiveness",
+    "human_layer",
+    "gaps_and_investment_ask"
+  ],
+  "priorities": [
+    "Board-grade risk framing — translate technical metrics into business exposure.",
+    "Investment justification — connect gaps to budget, policy, or headcount asks.",
+    "Trend direction — one month is a data point; three months is a pattern worth naming.",
+    "Peer context — benchmark position makes risk legible to non-technical executives."
+  ],
+  "section_mix": {
+    "required": [
+      "protection_effectiveness",
+      "human_layer",
+      "posture_and_gaps",
+      "investment_ask"
+    ],
+    "optional_if_data_supports": [
+      "ato_and_identity_risk",
+      "tenant_comparison"
+    ]
+  },
+  "closing_ask_type": "budget_policy_or_headcount",
+  "observation_relevance_threshold": 0.5,
+  "emphasis_overrides": {
+    "risk": {
+      "amplify": [
+        "critical_unresolved_checks",
+        "vip_inbox_attacks",
+        "credential_submission_trend",
+        "ato_risk_trend",
+        "mfa_enforcement_failures"
+      ],
+      "demote": [
+        "detailed_remediation_timelines",
+        "per_tenant_technical_breakdowns"
+      ]
+    },
+    "value": {
+      "amplify": [
+        "total_threats_blocked",
+        "mttr_vs_benchmark",
+        "user_reporting_improvement",
+        "vip_protection_trend"
+      ],
+      "demote": [
+        "unresolved_gaps",
+        "failing_posture_items"
+      ]
+    },
+    "balanced": {
+      "amplify": [],
+      "demote": []
+    }
+  },
+  "exhibit_preferences": [
+    "vip_attacks_by_month",
+    "reporting_rate_trend",
+    "credential_submission_trend",
+    "posture_pass_by_tenant",
+    "ato_risk_trend"
+  ],
+  "forbidden_words": [
+    "leverage",
+    "robust",
+    "synergies",
+    "seamless",
+    "cutting-edge",
+    "best-in-class",
+    "world-class",
+    "game-changing",
+    "proactive",
+    "holistic",
+    "innovative"
+  ],
+  "sentence_target_words": 18,
+  "brief_length_guidance": {
+    "short": "3 sections, 1 exhibit each, 80-word prose per section",
+    "standard": "4 sections, 1-2 exhibits each, 120-word prose per section",
+    "full": "5-6 sections, 2 exhibits each, 160-word prose per section"
+  }
+}

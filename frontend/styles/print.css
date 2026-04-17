@@ -1,9 +1,114 @@
-/* Print stylesheet — Phase 8 will populate these rules. */
-
-@media print {
-  /* TODO: Phase 8 — @page margins, orphan/widow control, section breaks */
-}
+/* Print stylesheet for Abnormal Brief Studio */
 
 @page {
-  /* TODO: Phase 8 — size, margins, header/footer content */
+  size: letter;
+  margin: 1in 1.1in 1in 1.1in;
+}
+
+@media print {
+  /* Base */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #1A1A1A;
+    font-family: "Inter", sans-serif;
+    font-size: 10pt;
+    line-height: 1.6;
+  }
+
+  /* Hide interactive elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Page breaks */
+  .page-break-before {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Orphan/widow control */
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h1, h2, h3 {
+    orphans: 4;
+    widows: 4;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Headings */
+  h1 {
+    font-size: 22pt;
+    margin-bottom: 6pt;
+  }
+
+  h2 {
+    font-size: 13pt;
+    margin-bottom: 4pt;
+  }
+
+  /* Links — print the URL */
+  a[href]:not(.no-link-print)::after {
+    content: none;
+  }
+
+  /* Evidence chips — hidden in print (replaced by superscript footnotes) */
+  .chip-evidence {
+    display: none !important;
+  }
+
+  /* Footnote superscripts */
+  .print-footnote-ref {
+    font-size: 7pt;
+    color: #4C566A;
+    font-weight: 700;
+    vertical-align: super;
+    line-height: 0;
+    margin-left: 1pt;
+  }
+
+  /* Section dividers */
+  hr {
+    border: none;
+    border-top: 0.5pt solid #E5E4DF;
+    margin: 12pt 0;
+  }
+
+  /* Cards / bordered blocks */
+  [data-print-card] {
+    border: 0.5pt solid #E5E4DF;
+    border-radius: 6pt;
+    padding: 10pt 12pt;
+    margin-bottom: 8pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Thesis accent bar */
+  [data-thesis-bar] {
+    border-left: 2pt solid #4C566A;
+    padding-left: 10pt;
+    margin-bottom: 16pt;
+  }
+
+  /* Recommendations */
+  [data-rec-card] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 8pt;
+  }
 }

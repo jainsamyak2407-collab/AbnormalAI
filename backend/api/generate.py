@@ -1,63 +1,52 @@
-import asyncio
 import json
 import uuid
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from ai.orchestrator import run_pipeline
 from models import GenerateRequest
 from store import store
 
 router = APIRouter()
 
-STAGES = [
-    "Data Interpreter",
-    "Narrative Architect",
-    "Section Writer",
-    "Recommendation Reasoner",
-    "Evidence Auditor",
-]
 
+async def _stream(brief_id: str, request: GenerateRequest, session: dict):
+    """Run the AI pipeline and stream SSE events. Store brief when done."""
+    brief: dict | None = None
 
-async def _stream_generate(request: GenerateRequest):
-    """Stub SSE stream: emits one stage_complete event per pipeline stage, then brief_id."""
-    brief_id = str(uuid.uuid4())
+    try:
+        async for event_str in run_pipeline(brief_id, request, session):
+            # Intercept the internal _brief_payload event — store it, don't forward it
+            try:
+                event = json.loads(event_str.removeprefix("data: ").strip())
+                if event.get("type") == "_brief_payload":
+                    brief = event.get("brief")
+                    continue
+            except Exception:
+                pass
+            yield event_str
+    except Exception as e:
+        # Stage raised after emitting its error SSE — yield a clean terminal error
+        yield f'data: {json.dumps({"type": "error", "message": str(e)})}\n\n'
 
-    for i, stage_name in enumerate(STAGES, start=1):
-        await asyncio.sleep(0.4)  # simulate work
-        event = {
-            "type": "stage_complete",
-            "stage": i,
-            "stage_name": stage_name,
-            "total_stages": len(STAGES),
-        }
-        yield f"data: {json.dumps(event)}\n\n"
-
-    # Store a stub brief so GET /api/brief/{brief_id} has something to return.
-    store.set(
-        brief_id,
-        {
-            "brief_id": brief_id,
-            "session_id": request.session_id,
-            "audience": request.audience,
-            "period": "Q1 2026",
-            "company_name": "Meridian Healthcare",
-            "thesis": "Stub thesis — Phase 4 will populate this.",
-            "sections": [],
-            "recommendations": [],
-            "risks": [],
-        },
-    )
-
-    done_event = {"type": "done", "brief_id": brief_id}
-    yield f"data: {json.dumps(done_event)}\n\n"
+    if brief is not None:
+        store.set(brief_id, {"brief": brief, "session_id": request.session_id})
 
 
 @router.post("/generate")
 async def generate(request: GenerateRequest) -> StreamingResponse:
-    """Stub: streams SSE progress events then emits brief_id on completion."""
+    """Stream SSE progress events through the 5-stage AI pipeline."""
+    session = store.get(request.session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    if "metrics" not in session:
+        raise HTTPException(status_code=422, detail="Session has no computed metrics.")
+
+    brief_id = str(uuid.uuid4())
+
     return StreamingResponse(
-        _stream_generate(request),
+        _stream(brief_id, request, session),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

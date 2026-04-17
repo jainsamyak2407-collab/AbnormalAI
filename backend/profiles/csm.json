@@ -1,1 +1,85 @@
-{}
+{
+  "audience": "csm",
+  "title": "Customer Success Manager",
+  "tone": "consultative, commercial, forward-looking",
+  "narrative_arc": [
+    "value_realized",
+    "benchmark_position",
+    "expansion_opportunity",
+    "renewal_ask"
+  ],
+  "priorities": [
+    "Value realization — quantify what Abnormal delivered this quarter in concrete terms.",
+    "Benchmark positioning — show the customer where they stand versus peers.",
+    "Expansion signals — surface gaps that point to upsell or cross-sell opportunities.",
+    "Renewal framing — make the business case for continued and expanded investment."
+  ],
+  "section_mix": {
+    "required": [
+      "value_realized",
+      "benchmark_position",
+      "expansion_signals",
+      "renewal_ask"
+    ],
+    "optional_if_data_supports": [
+      "tenant_comparison",
+      "human_layer_coaching"
+    ]
+  },
+  "closing_ask_type": "renewal_or_expansion",
+  "observation_relevance_threshold": 0.4,
+  "emphasis_overrides": {
+    "risk": {
+      "amplify": [
+        "gaps_as_product_opportunity",
+        "credential_submission_trend",
+        "tenant_posture_gap",
+        "auto_remediation_below_median"
+      ],
+      "demote": [
+        "wins_already_established"
+      ]
+    },
+    "value": {
+      "amplify": [
+        "total_threats_blocked",
+        "mttr_vs_benchmark",
+        "user_reporting_improvement",
+        "benchmark_wins"
+      ],
+      "demote": [
+        "unresolved_gaps"
+      ]
+    },
+    "balanced": {
+      "amplify": [],
+      "demote": []
+    }
+  },
+  "exhibit_preferences": [
+    "threats_by_month",
+    "reporting_rate_trend",
+    "benchmark_comparison_table",
+    "tenant_posture_comparison",
+    "credential_submission_trend"
+  ],
+  "forbidden_words": [
+    "leverage",
+    "robust",
+    "synergies",
+    "seamless",
+    "cutting-edge",
+    "best-in-class",
+    "world-class",
+    "game-changing",
+    "proactive",
+    "holistic",
+    "innovative"
+  ],
+  "sentence_target_words": 18,
+  "brief_length_guidance": {
+    "short": "3 sections, 1 exhibit each, 80-word prose per section",
+    "standard": "4 sections, 1-2 exhibits each, 120-word prose per section",
+    "full": "5-6 sections, 2 exhibits each, 160-word prose per section"
+  }
+}

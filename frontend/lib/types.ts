@@ -39,11 +39,27 @@ export interface Brief {
   risks: Record<string, unknown>[]
 }
 
+export type MetricType = "scalar" | "criteria_table" | "row_list" | "breakdown"
+
+export interface BreakdownSegment {
+  label: string
+  value: number
+  share: number
+}
+
 export interface EvidenceRecord {
   evidence_id: string
-  metric_name: string
-  value: number | string
-  calculation: string
+  metric_label: string
+  metric_type: MetricType
+  calculation_description: string
   source_row_count: number
-  source_rows: Record<string, unknown>[]
+  // scalar
+  value?: number | string | null
+  unit?: string | null
+  // criteria_table
+  criteria_rows?: Record<string, unknown>[] | null
+  // row_list
+  rows?: Record<string, unknown>[] | null
+  // breakdown
+  segments?: BreakdownSegment[] | null
 }
