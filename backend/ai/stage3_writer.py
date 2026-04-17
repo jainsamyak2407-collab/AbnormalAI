@@ -89,6 +89,8 @@ async def write_one_section(
         "company_name": company_name,
         "period": period,
         "section_intent": pillar.get("section_intent", pillar.get("headline", "")),
+        "thesis_contract": pillar.get("thesis_contract", pillar.get("section_intent", "")),
+        "dominant_tension": pillar.get("dominant_tension", ""),
         "observations_json": observations_for_pillar,
         "evidence_index_json": evidence_for_prompt,
         "exhibit_name": pillar.get("exhibit") or "none",

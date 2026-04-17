@@ -20,8 +20,10 @@ Return a JSON array. Each element is one observation with this exact schema:
 {
   "observation_id": "OBS-01",
   "claim": "One sentence. Action-first. Subject + verb + number + comparative frame.",
-  "magnitude": "quantified size of the signal — e.g. '3.1 percentage points above p75'",
+  "magnitude": "Quantified size of the signal — e.g. '3.1 percentage points above p75'.",
   "direction": "improving | degrading | stable | mixed",
+  "tension": "One sentence. Name the competing force: what is good about this finding AND what remains at risk. If no tension exists, state the dominant risk or opportunity.",
+  "so_what": "One sentence in plain business language. What does this mean for the board or the customer relationship — not for security ops?",
   "evidence_refs": ["E3", "E7"],
   "audience_relevance": {
     "ciso": 0.0,
@@ -36,6 +38,8 @@ Rules for each field:
 - **claim**: One sentence, 10–25 words. Lead with the subject and verb. Include the number and its frame (trend, benchmark, or success criterion). No em dashes. No buzzwords.
 - **magnitude**: A brief phrase quantifying the size of the signal — not a repeat of the claim. Example: "67.6% vs. industry p50 of 75.0%".
 - **direction**: Choose one. "mixed" only if two sub-metrics move in opposite directions within the same observation.
+- **tension**: This field is what makes an observation narratable. A "mixed" finding names both sides. A "degrading" finding names what is at stake. An "improving" finding names what still needs to close. Do not write "there is no tension" — every finding has a dominant force.
+- **so_what**: Translate the metric into business language a board member or CSM can act on. Examples: "Unresolved analyst load is building toward a capacity constraint." / "The acquisition tenant is trailing on security hygiene, creating compliance exposure during the integration period."
 - **evidence_refs**: Every observation must cite at least one evidence ID from the provided index. Use the exact IDs (e.g. "E3"). Do not invent IDs.
 - **audience_relevance**: Float 0.0–1.0. Score independently. A ciso score of 0.8 means the observation is highly relevant to a board-facing brief. A csm score of 0.8 means it is highly relevant to a QBR. Many observations are relevant to both.
 - **narrative_category**: One of the six listed. Choose the best fit.
@@ -47,7 +51,7 @@ Cover all of the following signal categories if the data supports them:
 1. **Threat volume and trend** — total threats, month-over-month direction, attack type composition.
 2. **VIP protection** — VIP inbox attacks by month, trend toward success criterion.
 3. **Remediation performance** — auto-remediation rate vs. benchmark, MTTR vs. benchmark and success criterion.
-4. **Human layer** — user reporting rate by month and department; credential submission rate trend. Name the bifurcation if reporting is rising while credential submissions are also rising.
+4. **Human layer** — user reporting rate by month and department; credential submission rate trend. If reporting is rising while credential submissions are also rising, produce a "mixed" direction observation with a tension that names both sides explicitly — this bifurcation is a key narrative signal and must not be flattened into a single direction.
 5. **Posture** — overall pass rate, by-tenant comparison, critical unresolved checks, MFA enforcement failures.
 6. **ATO and identity risk** — ATO count trend, mean risk score trend, SOC-notified rate as a manual-load signal.
 7. **Benchmark position** — for each metric where benchmark data exists, state whether the customer is above or below the relevant percentile.

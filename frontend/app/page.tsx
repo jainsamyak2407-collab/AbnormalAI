@@ -267,7 +267,7 @@ export default function LandingPage() {
           style={{ display: "flex", borderTop: "1px solid var(--border-subtle)", borderLeft: "1px solid var(--border-subtle)" }}
         >
           {[
-            { n: "5", label: "AI STAGES" },
+            { n: "6", label: "AI STAGES" },
             { n: "2", label: "AUDIENCE MODES" },
             { n: "~60s", label: "GENERATION TIME" },
             { n: "0", label: "DATA RETAINED" },

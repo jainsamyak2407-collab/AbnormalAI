@@ -22,9 +22,11 @@ Return a JSON array. Each element:
 {
   "recommendation_id": "REC-01",
   "gap": "One sentence naming the specific security gap. Quantified. Evidence-referenced.",
+  "urgency_signal": "persistent | emerging | new",
+  "urgency_context": "One sentence. How long has this gap existed, or how fast is it moving? Example: 'MFA enforcement has failed every weekly check for 13 consecutive weeks.' or 'Credential submissions have tripled over three months.'",
   "action": "One sentence. The specific action the CISO should take or sponsor.",
   "ask_type": "budget | policy | headcount | configuration",
-  "expected_impact": "One sentence. The measurable outcome if the action is taken, with a timeframe.",
+  "expected_impact": "One sentence. The measurable outcome if the action is taken, with a realistic timeframe.",
   "rationale_chain": [
     "Step 1: the gap in evidence terms.",
     "Step 2: why the gap creates business risk.",
@@ -39,6 +41,8 @@ Return a JSON array. Each element:
 Rules:
 
 - **gap**: Must reference a specific metric and value from the brief. "Auto-remediation rate is 67.6% [E5], 7.4 percentage points below the healthcare industry median of 75.0% [E18]."
+- **urgency_signal**: `persistent` = this gap has existed for multiple periods without improvement; `emerging` = this gap is trending in the wrong direction but has not yet reached critical severity; `new` = this gap appeared in the current period for the first time.
+- **urgency_context**: A single sentence that anchors the urgency signal to a specific duration or velocity. This is what transforms a recommendation from theoretical to urgent.
 - **action**: One sentence, specific and actionable. Starts with a verb. Names what is needed — not just that something should be "reviewed" or "considered".
 - **ask_type**: One of the four types. CISO framing always ends in a resource ask.
 - **expected_impact**: State the outcome in measurable terms. Include a realistic timeframe. "Lift auto-remediation rate to industry median within two quarters."

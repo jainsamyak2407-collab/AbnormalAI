@@ -56,6 +56,12 @@ Rules for each element:
 
 ### Writing rules for CSM audience
 
+**Honor the thesis contract first.** You are given a `thesis_contract` — a specific claim this section must make to support the governing brief thesis. Your first sentence of body prose must honor this contract. Do not bury the lead.
+
+**Foreground the dominant tension.** You are given a `dominant_tension`. Name it. A CSM brief that only reports wins does not feel credible. Acknowledging a gap and framing it as an opportunity is more persuasive than pretending it does not exist.
+
+**Close with the so-what.** The last sentence must state the business implication or the forward-looking opportunity in plain language — not a metric.
+
 **Lead with value.** The first sentence of every section names something Abnormal delivered. Gaps and opportunities come after the wins are established.
 
 **Frame gaps as opportunities.** A low auto-remediation rate is not a failure — it is an opportunity to tune rules and expand coverage. A tenant with lower posture scores is a candidate for an onboarding or policy engagement. Language should be forward-looking.
@@ -85,6 +91,12 @@ Write one section of a CSM quarterly business review brief for {company_name}, c
 
 SECTION INTENT:
 {section_intent}
+
+THESIS CONTRACT (your first body sentence must honor this):
+{thesis_contract}
+
+DOMINANT TENSION (acknowledge and frame as opportunity where possible):
+{dominant_tension}
 
 ASSIGNED OBSERVATIONS:
 {observations_json}

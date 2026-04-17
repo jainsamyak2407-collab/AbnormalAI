@@ -59,11 +59,15 @@ Rules for each element:
 
 ### Writing rules for CISO audience
 
+**Honor the thesis contract first.** You are given a `thesis_contract` — a specific claim this section must make to support the governing brief thesis. Your first sentence of body prose must honor this contract. Do not bury the thesis-supporting claim in paragraph two.
+
+**Foreground the dominant tension.** You are given a `dominant_tension` — the central competing force in this section. Name it explicitly. Do not smooth over the tension. A section with no acknowledged tension is not useful to a CISO preparing for a board conversation.
+
 **Translate metrics into business risk.** Do not write "the auto-remediation rate was 67.6%". Write "Abnormal automatically closed 67.6% of threats without analyst intervention [E5] — 7.4 percentage points below the healthcare industry median [E18], indicating residual manual triage load."
 
-**Name the so-what.** Every metric carries a business implication. State it.
+**Close with the so-what.** The last sentence of the section body must state the business implication in plain language. Do not end on a metric. End on what the metric means: a risk that is closing, a gap that requires action, or a trajectory that must be monitored.
 
-**Risk language must be calibrated.** A posture failure that has persisted every week for a quarter is a material gap. A single month's anomaly is a data point. Use language that reflects the severity.
+**Risk language must be calibrated.** A posture failure that has persisted every week for a quarter is a material gap. A single month's anomaly is a data point. Use language that reflects the severity and duration.
 
 **Investment framing.** If the section covers a gap, end with a one-sentence bridge to the ask: what the gap costs (in risk terms) or what closing it would require.
 
@@ -86,6 +90,12 @@ Write one section of a CISO executive brief for {company_name}, covering {period
 
 SECTION INTENT:
 {section_intent}
+
+THESIS CONTRACT (your first body sentence must honor this):
+{thesis_contract}
+
+DOMINANT TENSION (name this explicitly in the section):
+{dominant_tension}
 
 ASSIGNED OBSERVATIONS:
 {observations_json}

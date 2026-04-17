@@ -22,6 +22,8 @@ Return a JSON array. Each element:
 {
   "recommendation_id": "REC-01",
   "gap_or_signal": "One sentence naming the specific finding. Quantified. Evidence-referenced.",
+  "urgency_signal": "persistent | emerging | new",
+  "urgency_context": "One sentence. How long has this gap existed or how fast is it moving? Example: 'Credential submission rate has tripled from 2.1% to 6.4% over three months.'",
   "action": "One sentence. The specific action the customer should take, with Abnormal's role named.",
   "commercial_angle": "expansion | renewal | configuration | enablement",
   "expected_impact": "One sentence. The measurable customer outcome if the action is taken.",
@@ -39,6 +41,8 @@ Return a JSON array. Each element:
 Rules:
 
 - **gap_or_signal**: Must reference a specific metric and value from the brief. Name the gap or opportunity precisely.
+- **urgency_signal**: `persistent` = this gap has existed for multiple periods; `emerging` = trending in the wrong direction; `new` = appeared this period for the first time.
+- **urgency_context**: One sentence anchoring the urgency signal to a specific duration or velocity. Makes the recommendation feel timely, not theoretical.
 - **action**: One sentence, starting with a verb. Names what the customer should do and how Abnormal supports it.
 - **commercial_angle**: One of the four types. `expansion` = new product, seat expansion, or additional tenant coverage. `renewal` = value realization that anchors the renewal conversation. `configuration` = tuning existing deployment to improve outcomes. `enablement` = training, onboarding, or adoption.
 - **expected_impact**: State the outcome in measurable terms the customer will recognize. "Lift the T-002 posture pass rate from 72.1% to above 78% within one quarter."

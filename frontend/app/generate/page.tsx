@@ -12,6 +12,7 @@ const STAGES = [
   { num: 3, label: "SECTION WRITER", sub: "Drafting each section with evidence references" },
   { num: 4, label: "RECOMMENDATION REASONER", sub: "Deriving actions from identified gaps" },
   { num: 5, label: "EVIDENCE AUDITOR", sub: "Verifying all evidence references resolve" },
+  { num: 6, label: "NARRATIVE CRITIC", sub: "Reviewing narrative quality and thesis coherence" },
 ]
 
 export default function GeneratePage() {
@@ -22,7 +23,7 @@ export default function GeneratePage() {
   const emphasis = searchParams.get("emphasis") ?? "balanced"
   const length = searchParams.get("length") ?? "standard"
 
-  const [stages, setStages] = useState<Record<number, StageStatus>>({ 1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending" })
+  const [stages, setStages] = useState<Record<number, StageStatus>>({ 1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending", 6: "pending" })
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -65,7 +66,7 @@ export default function GeneratePage() {
             } else if (type === "stage_complete") {
               const s = event.stage as number
               setStages((prev) => ({ ...prev, [s]: "done" }))
-              setProgress((s / 5) * 100)
+              setProgress((s / STAGES.length) * 100)
             } else if (type === "done") {
               setProgress(100); setDone(true)
               setTimeout(() => router.push(`/brief/${event.brief_id as string}`), 800)
@@ -147,7 +148,7 @@ export default function GeneratePage() {
               {/* Status headline */}
               <div style={{ marginBottom: "48px" }}>
                 <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "12px" }}>
-                  {done ? "COMPLETE" : "PIPELINE RUNNING"} · STAGE {doneCount}/{STAGES.length}
+                  {done ? "COMPLETE" : "PIPELINE RUNNING"} · STAGE {doneCount} OF {STAGES.length}
                 </p>
                 <h1 style={{
                   fontFamily: "var(--font-serif)",

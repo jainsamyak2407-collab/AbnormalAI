@@ -315,7 +315,7 @@ export default function ConfigurePage() {
                 {audience === "ciso" ? "CISO brief" : "CSM QBR brief"} &middot; {emphasis.charAt(0).toUpperCase() + emphasis.slice(1)} &middot; {length.charAt(0).toUpperCase() + length.slice(1)}
               </p>
               <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)", marginTop: "4px", letterSpacing: "0.06em" }}>
-                5-stage AI pipeline &middot; ~60 seconds
+                6-stage AI pipeline &middot; ~75 seconds
               </p>
             </div>
             <button
