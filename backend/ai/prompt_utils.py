@@ -63,13 +63,13 @@ def fill_template(template: str, variables: dict[str, Any]) -> str:
 
 def extract_json(text: str) -> Any:
     """
-    Parse JSON from a Claude response, handling markdown fences, trailing commas,
-    and truncated arrays (caused by max_tokens being hit mid-response).
+    Parse JSON from a Claude response, handling markdown fences, preamble text,
+    trailing commas, and truncated arrays (caused by max_tokens being hit mid-response).
     Raises json.JSONDecodeError only if all recovery attempts fail.
     """
     text = text.strip()
 
-    # Strip markdown fences if present
+    # Strip markdown fences if present (handles text before/after the fence too)
     fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
     if fence_match:
         text = fence_match.group(1).strip()
@@ -82,12 +82,26 @@ def extract_json(text: str) -> Any:
     except json.JSONDecodeError:
         pass
 
-    # Recovery: if we have a truncated JSON array, close it at the last complete object
-    if text.lstrip().startswith("["):
-        # Find last complete } and close the array there
-        last_close = text.rfind("}")
+    # Recovery 1: preamble text before JSON — find first [ or { and try from there
+    for start_char in ("[", "{"):
+        idx = text.find(start_char)
+        if idx > 0:
+            candidate = text[idx:]
+            candidate = re.sub(r",\s*([}\]])", r"\1", candidate)
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                pass
+
+    # Recovery 2: truncated JSON array — close at last complete object
+    array_text = text
+    array_idx = text.find("[")
+    if array_idx >= 0:
+        array_text = text[array_idx:]
+    if array_text.lstrip().startswith("["):
+        last_close = array_text.rfind("}")
         if last_close != -1:
-            recovered = text[: last_close + 1] + "]"
+            recovered = array_text[: last_close + 1] + "]"
             recovered = re.sub(r",\s*([}\]])", r"\1", recovered)
             try:
                 return json.loads(recovered)
