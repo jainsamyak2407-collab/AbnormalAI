@@ -39,6 +39,44 @@ export interface Brief {
   risks: Record<string, unknown>[]
 }
 
+// ---------------------------------------------------------------------------
+// Dataset library
+// ---------------------------------------------------------------------------
+
+export interface DatasetFile {
+  original_name: string
+  detected_schema: string
+  row_count: number
+  columns: string[]
+  size_bytes: number
+}
+
+export interface Dataset {
+  dataset_id: string
+  name: string
+  description: string
+  is_sample: boolean
+  created_at: string
+  updated_at: string
+  files: DatasetFile[]
+  account: Record<string, unknown> | null
+  period_detected: { label?: string; start?: string; end?: string } | null
+}
+
+export interface FilePageResult {
+  filename: string
+  total_rows: number
+  page: number
+  page_size: number
+  total_pages: number
+  columns: string[]
+  rows: Record<string, string>[]
+}
+
+// ---------------------------------------------------------------------------
+// Evidence
+// ---------------------------------------------------------------------------
+
 export type MetricType = "scalar" | "criteria_table" | "row_list" | "breakdown"
 
 export interface BreakdownSegment {

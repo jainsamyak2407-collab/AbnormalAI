@@ -94,7 +94,7 @@ const LENGTH_OPTIONS: { id: Length; label: string; desc: string }[] = [
 export default function ConfigurePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const sessionId = searchParams.get("session_id") ?? ""
+  const sessionId = searchParams.get("session_id") ?? searchParams.get("session") ?? ""
 
   const [audience, setAudience] = useState<Audience>("ciso")
   const [emphasis, setEmphasis] = useState<Emphasis>("balanced")
