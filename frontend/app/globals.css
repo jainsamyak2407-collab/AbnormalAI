@@ -2,68 +2,222 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design tokens ─────────────────────────────────────────────────── */
 :root {
+  /* App chrome — dark */
+  --bg-page:        #0A0B10;
+  --bg-surface:     #111218;
+  --bg-surface-2:   #191B24;
+  --border-subtle:  #22242E;
+  --border-strong:  #2D3040;
+  --text-primary:   #F5F5F7;
+  --text-secondary: #9BA3B4;
+  --text-tertiary:  #6B7280;
+
+  /* Accent */
+  --accent:         #FF5B49;
+  --accent-hover:   #FF7463;
+  --accent-dim:     #BF4537;
+
+  /* Semantic */
+  --success:        #4ADE80;
+  --warning:        #FBBF24;
+  --danger:         #EF4444;
+
+  /* Brief "paper" surface — light */
+  --paper-bg:       #FAFAF7;
+  --paper-text:     #1A1A1A;
+  --paper-muted:    #6B7280;
+  --paper-border:   #E5E4DF;
+  --paper-accent:   #4C566A;
+
+  /* Typography */
+  --font-sans:      var(--font-inter), system-ui, sans-serif;
+  --font-serif:     var(--font-source-serif), Georgia, serif;
+  --font-mono:      var(--font-ibm-mono), 'Courier New', monospace;
+
   --radius: 0.5rem;
 }
 
+/* ─── Base layer ─────────────────────────────────────────────────────── */
 @layer base {
   * {
-    @apply border-border;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    background: var(--bg-page);
+    color: var(--text-primary);
   }
 
   body {
-    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    background: var(--bg-page);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Consistent focus ring */
+  /* Paper surfaces override to light */
+  .paper {
+    background: var(--paper-bg);
+    color: var(--paper-text);
+  }
+
   :focus-visible {
-    outline: 2px solid #4C566A;
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+
+  /* Remove default button styles */
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* Anchor resets */
+  a {
+    color: inherit;
+    text-decoration: none;
   }
 }
 
+/* ─── Utility classes ────────────────────────────────────────────────── */
 @layer utilities {
+  /* Typography shortcuts */
   .font-serif {
-    font-family: var(--font-source-serif), Georgia, serif;
+    font-family: var(--font-serif);
   }
 
-  /* Evidence chip: desaturated mustard, small caps */
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  /* Evidence chip — paper context */
   .chip-evidence {
     display: inline-flex;
     align-items: center;
     padding: 0 6px;
     height: 18px;
     border-radius: 3px;
-    background: #F0E9CC;
-    color: #7A6B3A;
+    background: rgba(255, 91, 73, 0.12);
+    color: var(--accent);
+    font-family: var(--font-mono);
     font-size: 10px;
-    font-variant: small-caps;
     font-weight: 600;
     letter-spacing: 0.04em;
     cursor: pointer;
     transition: background 0.15s ease;
+    vertical-align: middle;
   }
 
   .chip-evidence:hover {
-    background: #E8DFB8;
+    background: rgba(255, 91, 73, 0.22);
   }
 
-  /* Schema badge */
+  /* Schema detection badge */
   .chip-schema {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     padding: 3px 10px;
     border-radius: 999px;
-    background: #E6F4EA;
-    color: #2D6A4F;
+    background: rgba(74, 222, 128, 0.12);
+    color: var(--success);
+    font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 500;
   }
 
-  /* Divider rule */
+  /* Divider rule (paper context) */
   .rule {
     border: none;
-    border-top: 1px solid #E5E4DF;
+    border-top: 1px solid var(--paper-border);
+  }
+
+  /* Dark divider rule */
+  .rule-dark {
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  /* Mono label — small caps style */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  /* Accent pill */
+  .pill-accent {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-radius: 2px;
+  }
+
+  /* Surface card */
+  .card-surface {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+  }
+
+  .card-surface-2 {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+  }
+
+  /* Scrollbar — dark */
+  .scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 3px;
+  }
+}
+
+/* ─── Print styles ───────────────────────────────────────────────────── */
+@media print {
+  .chip-evidence {
+    display: none !important;
+  }
+
+  .print-footnote-ref {
+    font-size: 7pt;
+    color: var(--paper-accent);
+    vertical-align: super;
+    line-height: 0;
+  }
+
+  .print-page-break {
+    page-break-before: always;
+    break-before: page;
   }
 }

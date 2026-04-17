@@ -6,15 +6,21 @@ import { useRouter } from "next/navigation"
 import { createDataset, uploadDatasetFiles } from "@/lib/api"
 import type { Dataset } from "@/lib/types"
 
-const MONO = "'Courier New', Courier, monospace"
-const SERIF = "var(--font-source-serif), Georgia, serif"
-
 type Step = 1 | 2 | 3
 
 interface StagedFile {
   file: File
   detectedSchema: string | null
   warning: string | null
+}
+
+const SCHEMA_HINTS: Record<string, string[]> = {
+  threat_log:          ["event_id", "attack_type", "is_vip", "disposition"],
+  remediation_log:     ["remediation_id", "method", "mttr_minutes", "outcome"],
+  user_reporting:      ["reporting_rate", "credential_submission_rate", "department"],
+  posture_checks:      ["check_id", "check_name", "status", "severity"],
+  ato_events:          ["ato_id", "risk_score", "risk_factors", "outcome"],
+  industry_benchmarks: ["metric_name", "percentile", "value"],
 }
 
 export default function NewDatasetPage() {
@@ -33,16 +39,6 @@ export default function NewDatasetPage() {
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState<string | null>(null)
 
-  // Known schema signatures for client-side detection preview
-  const SCHEMA_HINTS: Record<string, string[]> = {
-    threat_log:          ["event_id", "attack_type", "is_vip", "disposition"],
-    remediation_log:     ["remediation_id", "method", "mttr_minutes", "outcome"],
-    user_reporting:      ["reporting_rate", "credential_submission_rate", "department"],
-    posture_checks:      ["check_id", "check_name", "status", "severity"],
-    ato_events:          ["ato_id", "risk_score", "risk_factors", "outcome"],
-    industry_benchmarks: ["metric_name", "percentile", "value"],
-  }
-
   const detectSchemaClient = useCallback(async (file: File): Promise<{ schema: string | null; warning: string | null }> => {
     if (file.name.endsWith(".json")) return { schema: "account_json", warning: null }
     if (!file.name.endsWith(".csv")) return { schema: null, warning: "Unsupported file type." }
@@ -53,10 +49,7 @@ export default function NewDatasetPage() {
         const headerLine = text.split("\n")[0] || ""
         const cols = new Set(headerLine.split(",").map((c) => c.trim().toLowerCase().replace(/^"|"$/g, "")))
         for (const [schema, required] of Object.entries(SCHEMA_HINTS)) {
-          if (required.every((r) => cols.has(r))) {
-            resolve({ schema, warning: null })
-            return
-          }
+          if (required.every((r) => cols.has(r))) { resolve({ schema, warning: null }); return }
         }
         resolve({ schema: "unknown", warning: "Schema not recognised — file will still be stored." })
       }
@@ -67,12 +60,10 @@ export default function NewDatasetPage() {
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const arr = Array.from(files)
-    const staged: StagedFile[] = await Promise.all(
-      arr.map(async (file) => {
-        const { schema, warning } = await detectSchemaClient(file)
-        return { file, detectedSchema: schema, warning }
-      })
-    )
+    const staged = await Promise.all(arr.map(async (file) => {
+      const { schema, warning } = await detectSchemaClient(file)
+      return { file, detectedSchema: schema, warning }
+    }))
     setStagedFiles((prev) => {
       const existing = new Set(prev.map((f) => f.file.name))
       return [...prev, ...staged.filter((s) => !existing.has(s.file.name))]
@@ -86,8 +77,7 @@ export default function NewDatasetPage() {
 
   const handleStep1Continue = () => {
     if (!name.trim()) { setNameErr("Dataset name is required."); return }
-    setNameErr(null)
-    setStep(2)
+    setNameErr(null); setStep(2)
   }
 
   const handleSave = async () => {
@@ -98,8 +88,7 @@ export default function NewDatasetPage() {
         await uploadDatasetFiles(created.dataset_id, stagedFiles.map((s) => s.file))
       }
       const updated = await import("@/lib/api").then((m) => m.getDataset(created.dataset_id))
-      setDataset(updated)
-      setStep(3)
+      setDataset(updated); setStep(3)
     } catch (e) {
       setSaveErr(e instanceof Error ? e.message : "Save failed.")
     } finally {
@@ -108,37 +97,38 @@ export default function NewDatasetPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-page)" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Top bar */}
-      <header style={{ padding: "14px 48px", borderBottom: "1px solid #E5E4DF", display: "flex", alignItems: "center", gap: "20px", background: "#FAFAF7" }}>
-        <Link href="/datasets" style={{ fontFamily: MONO, fontSize: "9px", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#1A1A1A", textDecoration: "none" }}>← DATA LIBRARY</Link>
-        <span style={{ width: "1px", height: "14px", background: "#E5E4DF" }} />
-        <span style={{ fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#1A1A1A" }}>NEW DATASET</span>
+      <header style={{ padding: "14px 48px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: "20px", background: "var(--bg-page)" }}>
+        <Link href="/datasets" style={{ fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>← DATA LIBRARY</Link>
+        <span style={{ width: "1px", height: "14px", background: "var(--border-strong)" }} />
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-primary)" }}>NEW DATASET</span>
       </header>
 
       <main style={{ maxWidth: "640px", margin: "0 auto", padding: "64px 48px" }}>
 
         {/* Step indicator */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0", marginBottom: "48px" }}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "48px" }}>
           {([1, 2, 3] as Step[]).map((n, i) => (
             <div key={n} style={{ display: "flex", alignItems: "center" }}>
               <div style={{
-                width: "28px", height: "28px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                background: step > n ? "#1A1A1A" : step === n ? "#4C566A" : "none",
-                border: step <= n ? "1px solid #E5E4DF" : "none",
+                width: "26px", height: "26px", borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: step > n ? "var(--accent)" : step === n ? "var(--accent)" : "transparent",
+                border: step <= n ? `1px solid ${step === n ? "var(--accent)" : "var(--border-strong)"}` : "none",
               }}>
                 {step > n ? (
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#FAFAF7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 ) : (
-                  <span style={{ fontFamily: MONO, fontSize: "10px", fontWeight: 700, color: step === n ? "#FAFAF7" : "#9CA3AF" }}>{n}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, color: step === n ? "#fff" : "var(--text-tertiary)" }}>{n}</span>
                 )}
               </div>
-              <span style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.12em", textTransform: "uppercase", color: step === n ? "#1A1A1A" : "#9CA3AF", margin: "0 12px" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.12em", textTransform: "uppercase", color: step === n ? "var(--text-primary)" : "var(--text-tertiary)", margin: "0 10px" }}>
                 {n === 1 ? "NAME" : n === 2 ? "UPLOAD" : "REVIEW"}
               </span>
-              {i < 2 && <div style={{ flex: 1, height: "1px", background: "#E5E4DF", width: "32px", marginRight: "12px" }} />}
+              {i < 2 && <div style={{ width: "28px", height: "1px", background: "var(--border-strong)", marginRight: "10px" }} />}
             </div>
           ))}
         </div>
@@ -146,35 +136,40 @@ export default function NewDatasetPage() {
         {/* Step 1: Name */}
         {step === 1 && (
           <div>
-            <h2 style={{ fontFamily: SERIF, fontSize: "28px", fontWeight: 700, color: "#1A1A1A", marginBottom: "8px" }}>Name your dataset</h2>
-            <p style={{ fontFamily: SERIF, fontSize: "15px", color: "#6B7280", lineHeight: 1.6, marginBottom: "36px" }}>Give this dataset a recognisable name. You can update it later.</p>
+            <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px", letterSpacing: "-0.02em" }}>Name your dataset</h2>
+            <p style={{ fontFamily: "var(--font-sans)", fontSize: "15px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "36px" }}>Give this dataset a recognisable name. You can update it later.</p>
 
             <div style={{ marginBottom: "20px" }}>
-              <label style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", display: "block", marginBottom: "6px" }}>DATASET NAME *</label>
+              <label style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)", display: "block", marginBottom: "6px" }}>DATASET NAME *</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleStep1Continue() }}
                 placeholder="e.g. Acme Corp · Q2 2026"
-                style={{ width: "100%", padding: "12px", fontFamily: SERIF, fontSize: "16px", border: `1px solid ${nameErr ? "#C0392B" : "#E5E4DF"}`, background: "#FFFFFF", color: "#1A1A1A", outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "12px 14px", fontFamily: "var(--font-sans)", fontSize: "16px", border: `1px solid ${nameErr ? "var(--danger)" : "var(--border-strong)"}`, background: "var(--bg-surface)", color: "var(--text-primary)", outline: "none", boxSizing: "border-box", borderRadius: "4px" }}
                 autoFocus
               />
-              {nameErr && <p style={{ fontFamily: MONO, fontSize: "9px", color: "#C0392B", marginTop: "4px" }}>{nameErr}</p>}
+              {nameErr && <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--danger)", marginTop: "4px" }}>{nameErr}</p>}
             </div>
 
             <div style={{ marginBottom: "36px" }}>
-              <label style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", display: "block", marginBottom: "6px" }}>DESCRIPTION (OPTIONAL)</label>
+              <label style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)", display: "block", marginBottom: "6px" }}>DESCRIPTION (OPTIONAL)</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Brief notes about this dataset…"
                 rows={3}
-                style={{ width: "100%", padding: "12px", fontFamily: SERIF, fontSize: "14px", border: "1px solid #E5E4DF", background: "#FFFFFF", color: "#1A1A1A", outline: "none", resize: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "12px 14px", fontFamily: "var(--font-sans)", fontSize: "14px", border: "1px solid var(--border-strong)", background: "var(--bg-surface)", color: "var(--text-primary)", outline: "none", resize: "none", boxSizing: "border-box", borderRadius: "4px" }}
               />
             </div>
 
-            <button onClick={handleStep1Continue} style={{ padding: "13px 36px", background: "#1A1A1A", color: "#FAFAF7", fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", border: "none", cursor: "pointer" }}>
-              CONTINUE →
+            <button
+              onClick={handleStep1Continue}
+              style={{ padding: "12px 32px", background: "var(--accent)", color: "#fff", fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer", borderRadius: "4px", transition: "background 0.15s" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+            >
+              Continue →
             </button>
           </div>
         )}
@@ -182,54 +177,54 @@ export default function NewDatasetPage() {
         {/* Step 2: Upload */}
         {step === 2 && (
           <div>
-            <h2 style={{ fontFamily: SERIF, fontSize: "28px", fontWeight: 700, color: "#1A1A1A", marginBottom: "8px" }}>Upload files</h2>
-            <p style={{ fontFamily: SERIF, fontSize: "15px", color: "#6B7280", lineHeight: 1.6, marginBottom: "36px" }}>
-              Drop your CSV exports and <code style={{ fontFamily: MONO }}>account.json</code>. Files are schema-detected automatically.
+            <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px", letterSpacing: "-0.02em" }}>Upload files</h2>
+            <p style={{ fontFamily: "var(--font-sans)", fontSize: "15px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "36px" }}>
+              Drop your CSV exports and <code style={{ fontFamily: "var(--font-mono)", fontSize: "13px", background: "var(--bg-surface-2)", padding: "1px 5px", borderRadius: "2px" }}>account.json</code>. Files are schema-detected automatically.
             </p>
 
-            {/* Drop zone */}
             <div
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: `2px dashed ${dragOver ? "#4C566A" : "#D1CFC6"}`,
+                border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border-strong)"}`,
                 padding: "48px 24px", textAlign: "center", cursor: "pointer",
-                background: dragOver ? "#F0EFE9" : "transparent",
-                marginBottom: "20px", transition: "all 0.15s",
+                background: dragOver ? "rgba(255,91,73,0.05)" : "transparent",
+                marginBottom: "20px", transition: "all 0.15s", borderRadius: "6px",
               }}
             >
-              <p style={{ fontFamily: SERIF, fontSize: "16px", color: "#4B5563", marginBottom: "6px" }}>Drop files here or click to browse</p>
-              <p style={{ fontFamily: MONO, fontSize: "9px", color: "#9CA3AF", letterSpacing: "0.1em" }}>CSV FILES + ACCOUNT.JSON · ANY ORDER</p>
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: "15px", color: "var(--text-secondary)", marginBottom: "6px" }}>Drop files here or click to browse</p>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>CSV FILES + ACCOUNT.JSON · ANY ORDER</p>
               <input ref={fileInputRef} type="file" multiple accept=".csv,.json" style={{ display: "none" }} onChange={(e) => e.target.files && addFiles(e.target.files)} />
             </div>
 
-            {/* Staged files */}
             {stagedFiles.length > 0 && (
               <div style={{ marginBottom: "28px" }}>
                 {stagedFiles.map((sf, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid #E5E4DF" }}>
-                    <span style={{ fontFamily: MONO, fontSize: "10px", color: "#1A1A1A", flex: 1 }}>{sf.file.name}</span>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-primary)", flex: 1 }}>{sf.file.name}</span>
                     {sf.detectedSchema && !sf.warning && (
-                      <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", padding: "2px 8px", background: "#D1FAE5", color: "#065F46" }}>✓ {sf.detectedSchema}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", padding: "2px 8px", background: "rgba(74,222,128,0.12)", color: "var(--success)", borderRadius: "2px" }}>✓ {sf.detectedSchema}</span>
                     )}
                     {sf.warning && (
-                      <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", padding: "2px 8px", background: "#FEF3C7", color: "#92400E" }}>⚠ {sf.warning}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", padding: "2px 8px", background: "rgba(251,191,36,0.12)", color: "var(--warning)", borderRadius: "2px" }}>⚠ {sf.warning}</span>
                     )}
-                    <button
-                      onClick={() => setStagedFiles((prev) => prev.filter((_, j) => j !== i))}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: "14px" }}
-                    >×</button>
+                    <button onClick={() => setStagedFiles((prev) => prev.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-tertiary)", fontSize: "16px", lineHeight: 1 }}>×</button>
                   </div>
                 ))}
               </div>
             )}
 
             <div style={{ display: "flex", gap: "12px" }}>
-              <button onClick={() => setStep(1)} style={{ padding: "13px 24px", background: "none", color: "#4C566A", fontFamily: MONO, fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", border: "1px solid #E5E4DF", cursor: "pointer" }}>← BACK</button>
-              <button onClick={() => setStep(3)} style={{ padding: "13px 36px", background: "#1A1A1A", color: "#FAFAF7", fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", border: "none", cursor: "pointer" }}>
-                REVIEW →
+              <button onClick={() => setStep(1)} style={{ padding: "12px 20px", background: "none", color: "var(--text-secondary)", fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, border: "1px solid var(--border-strong)", cursor: "pointer", borderRadius: "4px" }}>← Back</button>
+              <button
+                onClick={() => setStep(3)}
+                style={{ padding: "12px 32px", background: "var(--accent)", color: "#fff", fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer", borderRadius: "4px", transition: "background 0.15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+              >
+                Review →
               </button>
             </div>
           </div>
@@ -238,56 +233,59 @@ export default function NewDatasetPage() {
         {/* Step 3: Review & Save */}
         {step === 3 && !dataset && (
           <div>
-            <h2 style={{ fontFamily: SERIF, fontSize: "28px", fontWeight: 700, color: "#1A1A1A", marginBottom: "8px" }}>Review</h2>
-            <p style={{ fontFamily: SERIF, fontSize: "15px", color: "#6B7280", lineHeight: 1.6, marginBottom: "36px" }}>Confirm the dataset before saving.</p>
+            <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px", letterSpacing: "-0.02em" }}>Review</h2>
+            <p style={{ fontFamily: "var(--font-sans)", fontSize: "15px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "36px" }}>Confirm the dataset before saving.</p>
 
-            <div style={{ border: "1px solid #E5E4DF", padding: "24px", marginBottom: "28px" }}>
+            <div style={{ border: "1px solid var(--border-strong)", padding: "24px", marginBottom: "28px", borderRadius: "6px", background: "var(--bg-surface)" }}>
               <div style={{ marginBottom: "16px" }}>
-                <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "4px" }}>NAME</p>
-                <p style={{ fontFamily: SERIF, fontSize: "18px", fontWeight: 700, color: "#1A1A1A" }}>{name}</p>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "4px" }}>NAME</p>
+                <p style={{ fontFamily: "var(--font-serif)", fontSize: "18px", fontWeight: 700, color: "var(--text-primary)" }}>{name}</p>
               </div>
               {description && (
                 <div style={{ marginBottom: "16px" }}>
-                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "4px" }}>DESCRIPTION</p>
-                  <p style={{ fontFamily: SERIF, fontSize: "14px", color: "#4B5563" }}>{description}</p>
+                  <p style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "4px" }}>DESCRIPTION</p>
+                  <p style={{ fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)" }}>{description}</p>
                 </div>
               )}
               <div>
-                <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "8px" }}>FILES ({stagedFiles.length})</p>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "8px" }}>FILES ({stagedFiles.length})</p>
                 {stagedFiles.map((sf, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: i === 0 ? "1px solid #E5E4DF" : "none" }}>
-                    <span style={{ fontFamily: MONO, fontSize: "10px", color: "#1A1A1A" }}>{sf.file.name}</span>
-                    <span style={{ fontFamily: MONO, fontSize: "9px", color: "#9CA3AF" }}>
-                      {sf.detectedSchema ?? "unknown"}
-                    </span>
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: "1px solid var(--border-subtle)" }}>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-primary)" }}>{sf.file.name}</span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)" }}>{sf.detectedSchema ?? "unknown"}</span>
                   </div>
                 ))}
-                {stagedFiles.length === 0 && <p style={{ fontFamily: MONO, fontSize: "9px", color: "#9CA3AF" }}>No files — you can add them later.</p>}
+                {stagedFiles.length === 0 && <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)" }}>No files — you can add them later.</p>}
               </div>
             </div>
 
-            {saveErr && <p style={{ fontFamily: MONO, fontSize: "9px", color: "#C0392B", marginBottom: "12px" }}>{saveErr}</p>}
+            {saveErr && <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--danger)", marginBottom: "12px" }}>{saveErr}</p>}
 
             <div style={{ display: "flex", gap: "12px" }}>
-              <button onClick={() => setStep(2)} style={{ padding: "13px 24px", background: "none", color: "#4C566A", fontFamily: MONO, fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", border: "1px solid #E5E4DF", cursor: "pointer" }}>← BACK</button>
+              <button onClick={() => setStep(2)} style={{ padding: "12px 20px", background: "none", color: "var(--text-secondary)", fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, border: "1px solid var(--border-strong)", cursor: "pointer", borderRadius: "4px" }}>← Back</button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                style={{ padding: "13px 36px", background: "#1A1A1A", color: "#FAFAF7", fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1, display: "flex", alignItems: "center", gap: "8px" }}
+                style={{ padding: "12px 32px", background: "var(--accent)", color: "#fff", fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: 600, border: "none", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.7 : 1, display: "flex", alignItems: "center", gap: "8px", borderRadius: "4px" }}
               >
-                {saving && <div style={{ width: "10px", height: "10px", border: "1.5px solid rgba(255,255,255,0.3)", borderTopColor: "#FAFAF7", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
-                {saving ? "SAVING…" : "SAVE DATASET"}
+                {saving && <div style={{ width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />}
+                {saving ? "Saving…" : "Save Dataset"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Saved — navigate to dataset */}
+        {/* Saved */}
         {step === 3 && dataset && (
           <div>
-            <h2 style={{ fontFamily: SERIF, fontSize: "28px", fontWeight: 700, color: "#1A1A1A", marginBottom: "16px" }}>Dataset saved.</h2>
-            <p style={{ fontFamily: SERIF, fontSize: "15px", color: "#6B7280", lineHeight: 1.6, marginBottom: "32px" }}>
-              <strong>{dataset.name}</strong> is ready. You can now generate a brief or return to the library.
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(74,222,128,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="14" height="12" viewBox="0 0 14 12" fill="none"><path d="M1.5 6l3.5 3.5L12.5 1.5" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </div>
+              <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "28px", fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>Dataset saved.</h2>
+            </div>
+            <p style={{ fontFamily: "var(--font-sans)", fontSize: "15px", color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: "32px" }}>
+              <strong style={{ color: "var(--text-primary)" }}>{dataset.name}</strong> is ready. Generate a brief or return to the library.
             </p>
             <div style={{ display: "flex", gap: "12px" }}>
               <button
@@ -296,16 +294,19 @@ export default function NewDatasetPage() {
                   try {
                     const { session_id } = await import("@/lib/api").then((m) => m.createSessionFromDataset(dataset.dataset_id))
                     router.push(`/configure?session=${session_id}`)
-                  } catch {
-                    setSaving(false)
-                  }
+                  } catch { setSaving(false) }
                 }}
-                style={{ padding: "13px 36px", background: "#1A1A1A", color: "#FAFAF7", fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", border: "none", cursor: "pointer" }}
+                style={{ padding: "12px 32px", background: "var(--accent)", color: "#fff", fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer", borderRadius: "4px", transition: "background 0.15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
               >
-                GENERATE BRIEF
+                Generate Brief
               </button>
-              <Link href="/datasets" style={{ padding: "13px 24px", background: "none", color: "#4C566A", fontFamily: MONO, fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", border: "1px solid #E5E4DF", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-                OPEN LIBRARY
+              <Link
+                href="/datasets"
+                style={{ padding: "12px 20px", background: "none", color: "var(--text-secondary)", fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 500, border: "1px solid var(--border-strong)", display: "inline-flex", alignItems: "center", borderRadius: "4px" }}
+              >
+                Open Library
               </Link>
             </div>
           </div>

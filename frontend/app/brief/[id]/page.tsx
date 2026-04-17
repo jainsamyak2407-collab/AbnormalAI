@@ -515,46 +515,46 @@ export default function BriefPage() {
   }, [brief, rawBrief, router])
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: "24px", height: "24px", border: "2px solid #E5E4DF", borderTopColor: "#4C566A", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+    <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: "24px", height: "24px", border: "2px solid var(--border-strong)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 
   if (error || !brief) return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
-        <p style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#C0392B", marginBottom: "16px" }}>{error ?? "BRIEF NOT FOUND"}</p>
-        <Link href="/ingest" style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#4C566A", textDecoration: "none", borderBottom: "1px solid #4C566A" }}>START OVER</Link>
+        <p style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--danger)", marginBottom: "16px" }}>{error ?? "BRIEF NOT FOUND"}</p>
+        <Link href="/ingest" style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px" }}>START OVER</Link>
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-page)" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .brief-section .section-actions { opacity: 0; transition: opacity 0.15s; }
         .brief-section:hover .section-actions { opacity: 1; }
       `}</style>
 
-      {/* Sticky header */}
+      {/* Sticky header — dark chrome */}
       <header style={{
-        position: "sticky", top: 0, zIndex: 30, background: "#FAFAF7",
-        borderBottom: "1px solid #E5E4DF",
+        position: "sticky", top: 0, zIndex: 30, background: "var(--bg-page)",
+        borderBottom: "1px solid var(--border-subtle)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "14px 48px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <Link href="/" style={{ fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "#1A1A1A", textDecoration: "none" }}>
+          <Link href="/" style={{ fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--text-primary)" }}>
             ABNORMAL SECURITY
           </Link>
-          <span style={{ width: "1px", height: "14px", background: "#D1CFC6" }} />
+          <span style={{ width: "1px", height: "14px", background: "var(--border-strong)" }} />
           <span style={{
             fontFamily: MONO, fontSize: "9px", fontWeight: 700, letterSpacing: "0.16em",
             textTransform: "uppercase", padding: "4px 10px",
-            background: "#1A1A1A", color: "#FAFAF7",
+            background: "var(--accent)", color: "#fff", borderRadius: "2px",
           }}>
             {brief.audience === "ciso" ? "CISO" : "CSM QBR"}
           </span>
@@ -567,19 +567,19 @@ export default function BriefPage() {
             <button key={label} onClick={onClick} style={{
               fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em",
               textTransform: "uppercase", padding: "8px 14px",
-              background: "none", border: "1px solid #E5E4DF", color: "#4C566A", cursor: "pointer",
+              background: "none", border: "1px solid var(--border-strong)", color: "var(--text-secondary)", cursor: "pointer", borderRadius: "3px",
             }}>{label}</button>
           ))}
           <Link href={`/brief/${briefId}/print`} target="_blank" style={{
             fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em",
             textTransform: "uppercase", padding: "8px 14px",
-            background: "none", border: "1px solid #E5E4DF", color: "#4C566A",
-            textDecoration: "none", display: "inline-block",
+            background: "none", border: "1px solid var(--border-strong)", color: "var(--text-secondary)",
+            textDecoration: "none", display: "inline-block", borderRadius: "3px",
           }}>PRINT PDF</Link>
         </div>
       </header>
 
-      {/* Brief body */}
+      {/* Brief body — light paper */}
       <main style={{ maxWidth: "800px", margin: "0 auto", padding: "80px 48px" }}>
 
         {/* Masthead */}

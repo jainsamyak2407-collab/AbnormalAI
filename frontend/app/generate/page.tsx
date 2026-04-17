@@ -4,8 +4,6 @@ import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
-const MONO = "'Courier New', Courier, monospace"
-
 type StageStatus = "pending" | "running" | "done"
 
 const STAGES = [
@@ -69,8 +67,7 @@ export default function GeneratePage() {
               setStages((prev) => ({ ...prev, [s]: "done" }))
               setProgress((s / 5) * 100)
             } else if (type === "done") {
-              setProgress(100)
-              setDone(true)
+              setProgress(100); setDone(true)
               setTimeout(() => router.push(`/brief/${event.brief_id as string}`), 800)
             } else if (type === "error") {
               throw new Error((event.message as string) || "Generation failed.")
@@ -93,10 +90,10 @@ export default function GeneratePage() {
 
   if (!sessionId) {
     return (
-      <div style={{ minHeight: "100vh", background: "#FAFAF7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
-          <p style={{ fontFamily: MONO, fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "16px" }}>NO SESSION FOUND</p>
-          <Link href="/ingest" style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#4C566A", textDecoration: "none", borderBottom: "1px solid #4C566A" }}>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "16px" }}>NO SESSION FOUND</p>
+          <Link href="/ingest" style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px" }}>
             START OVER
           </Link>
         </div>
@@ -105,27 +102,28 @@ export default function GeneratePage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#FAFAF7", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", flexDirection: "column" }}>
 
-      {/* Progress bar — full width, top */}
-      <div style={{ height: "3px", background: "#E5E4DF", position: "fixed", top: 0, left: 0, right: 0, zIndex: 50 }}>
+      {/* Progress bar */}
+      <div style={{ height: "3px", background: "var(--border-subtle)", position: "fixed", top: 0, left: 0, right: 0, zIndex: 50 }}>
         <div style={{
-          height: "100%", background: "#4C566A",
+          height: "100%", background: "var(--accent)",
           width: `${progress}%`,
           transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
+          boxShadow: `0 0 12px var(--accent)`,
         }} />
       </div>
 
       {/* Header */}
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "18px 48px", borderBottom: "1px solid #E5E4DF",
-        marginTop: "3px",
+        padding: "18px 48px", borderBottom: "1px solid var(--border-subtle)",
+        marginTop: "3px", background: "var(--bg-page)",
       }}>
-        <span style={{ fontFamily: MONO, fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "#4C566A" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--text-primary)" }}>
           ABNORMAL SECURITY
         </span>
-        <span style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF" }}>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
           {audience.toUpperCase()} · {emphasis.toUpperCase()} · {length.toUpperCase()}
         </span>
       </header>
@@ -135,12 +133,12 @@ export default function GeneratePage() {
         <div style={{ width: "100%", maxWidth: "560px" }}>
 
           {error ? (
-            <div style={{ border: "1px solid #F5C6C2", background: "#FDF4F4", padding: "24px" }}>
-              <p style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#C0392B", marginBottom: "12px" }}>
+            <div style={{ border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", padding: "24px", borderRadius: "6px" }}>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--danger)", marginBottom: "12px" }}>
                 PIPELINE ERROR
               </p>
-              <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "15px", color: "#1A1A1A", marginBottom: "16px" }}>{error}</p>
-              <Link href={`/configure?session_id=${sessionId}`} style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#4C566A", textDecoration: "none", borderBottom: "1px solid #4C566A" }}>
+              <p style={{ fontFamily: "var(--font-serif)", fontSize: "15px", color: "var(--text-primary)", marginBottom: "16px", lineHeight: 1.5 }}>{error}</p>
+              <Link href={`/configure?session_id=${sessionId}`} style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px" }}>
                 BACK TO CONFIGURE
               </Link>
             </div>
@@ -148,73 +146,66 @@ export default function GeneratePage() {
             <>
               {/* Status headline */}
               <div style={{ marginBottom: "48px" }}>
-                <p style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.2em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "12px" }}>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-tertiary)", marginBottom: "12px" }}>
                   {done ? "COMPLETE" : "PIPELINE RUNNING"} · STAGE {doneCount}/{STAGES.length}
                 </p>
                 <h1 style={{
-                  fontFamily: "var(--font-source-serif), Georgia, serif",
+                  fontFamily: "var(--font-serif)",
                   fontSize: "36px", fontWeight: 700, lineHeight: 1.15,
-                  color: "#1A1A1A", marginBottom: "8px",
+                  color: "var(--text-primary)", marginBottom: "8px", letterSpacing: "-0.02em",
                 }}>
                   {done ? "Brief ready." : runningStage ? runningStage.label.charAt(0) + runningStage.label.slice(1).toLowerCase() + "…" : "Initialising pipeline…"}
                 </h1>
                 {!done && (
-                  <p style={{ fontFamily: "var(--font-source-serif), Georgia, serif", fontSize: "15px", color: "#9CA3AF", fontStyle: "italic" }}>
+                  <p style={{ fontFamily: "var(--font-serif)", fontSize: "15px", color: "var(--text-tertiary)", fontStyle: "italic" }}>
                     {runningStage?.sub ?? "Connecting to pipeline…"}
                   </p>
                 )}
               </div>
 
               {/* Stage list */}
-              <div style={{ borderTop: "1px solid #E5E4DF" }}>
+              <div style={{ borderTop: "1px solid var(--border-subtle)" }}>
                 {STAGES.map((stage) => {
                   const status = stages[stage.num]
                   return (
                     <div key={stage.num} style={{
                       display: "flex", alignItems: "center", gap: "20px",
-                      padding: "16px 0", borderBottom: "1px solid #E5E4DF",
-                      opacity: status === "pending" ? 0.4 : 1,
+                      padding: "16px 0", borderBottom: "1px solid var(--border-subtle)",
+                      opacity: status === "pending" ? 0.35 : 1,
                       transition: "opacity 0.4s ease",
                     }}>
-                      {/* Stage number / status */}
                       <div style={{ width: "28px", flexShrink: 0, display: "flex", justifyContent: "center" }}>
                         {status === "done" && (
                           <svg width="14" height="12" viewBox="0 0 14 12" fill="none">
-                            <path d="M1.5 6.5l3.5 4L12.5 1" stroke="#2D6A4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M1.5 6.5l3.5 4L12.5 1" stroke="var(--success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
                         {status === "running" && (
-                          <div style={{
-                            width: "10px", height: "10px", borderRadius: "50%",
-                            border: "2px solid #E5E4DF", borderTopColor: "#4C566A",
-                            animation: "spin 0.8s linear infinite",
-                          }} />
+                          <div style={{ width: "10px", height: "10px", borderRadius: "50%", border: "2px solid var(--border-strong)", borderTopColor: "var(--accent)", animation: "spin 0.8s linear infinite" }} />
                         )}
                         {status === "pending" && (
-                          <span style={{ fontFamily: MONO, fontSize: "10px", color: "#9CA3AF" }}>{stage.num}</span>
+                          <span style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)" }}>{stage.num}</span>
                         )}
                       </div>
 
-                      {/* Label */}
                       <div style={{ flex: 1 }}>
                         <p style={{
-                          fontFamily: MONO, fontSize: "10px", fontWeight: 700,
+                          fontFamily: "var(--font-mono)", fontSize: "10px", fontWeight: 700,
                           letterSpacing: "0.14em", textTransform: "uppercase",
-                          color: status === "done" ? "#1A1A1A" : status === "running" ? "#4C566A" : "#9CA3AF",
+                          color: status === "done" ? "var(--success)" : status === "running" ? "var(--text-primary)" : "var(--text-tertiary)",
                           marginBottom: "2px",
                         }}>
                           {stage.label}
                         </p>
                         {status === "running" && (
-                          <p style={{ fontFamily: MONO, fontSize: "9px", letterSpacing: "0.08em", color: "#9CA3AF" }}>
+                          <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.08em", color: "var(--text-tertiary)" }}>
                             {stage.sub}
                           </p>
                         )}
                       </div>
 
-                      {/* Done tag */}
                       {status === "done" && (
-                        <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#2D6A4F" }}>
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--success)" }}>
                           DONE
                         </span>
                       )}
@@ -224,7 +215,7 @@ export default function GeneratePage() {
               </div>
 
               {!done && (
-                <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", marginTop: "20px", textAlign: "center" }}>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: "8px", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-tertiary)", marginTop: "20px", textAlign: "center" }}>
                   TYPICALLY COMPLETES IN UNDER 60 SECONDS
                 </p>
               )}

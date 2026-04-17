@@ -8,36 +8,41 @@ import type { Audience, Emphasis, Length } from "@/lib/types"
 function StepBar({ current }: { current: 1 | 2 | 3 }) {
   const steps = ["Upload", "Configure", "Brief"]
   return (
-    <div className="flex items-center gap-0">
+    <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
       {steps.map((label, i) => {
         const num = i + 1
         const active = num === current
         const done = num < current
         return (
-          <div key={label} className="flex items-center">
-            <div className="flex items-center gap-2">
+          <div key={label} style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <span
-                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors"
                 style={{
-                  background: active ? "#4C566A" : done ? "#4C566A" : "#E5E4DF",
-                  color: active || done ? "#FAFAF7" : "#9CA3AF",
+                  width: "22px", height: "22px", borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "11px", fontWeight: 600,
+                  fontFamily: "var(--font-mono)",
+                  background: active || done ? "var(--accent)" : "var(--bg-surface-2)",
+                  color: active || done ? "#fff" : "var(--text-tertiary)",
+                  transition: "background 0.2s",
                 }}
               >
                 {done ? (
                   <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                    <path d="M1 4l2.5 2.5L9 1" stroke="#FAFAF7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 ) : num}
               </span>
-              <span
-                className="text-xs font-medium"
-                style={{ color: active ? "#1A1A1A" : "#9CA3AF" }}
-              >
+              <span style={{
+                fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.1em",
+                textTransform: "uppercase", fontWeight: 600,
+                color: active ? "var(--text-primary)" : "var(--text-tertiary)",
+              }}>
                 {label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className="w-12 h-px mx-3" style={{ background: "#E5E4DF" }} />
+              <div style={{ width: "40px", height: "1px", margin: "0 12px", background: "var(--border-strong)" }} />
             )}
           </div>
         )
@@ -102,27 +107,18 @@ export default function ConfigurePage() {
 
   const handleGenerate = () => {
     if (!sessionId) return
-    const params = new URLSearchParams({
-      session_id: sessionId,
-      audience,
-      emphasis,
-      length,
-    })
+    const params = new URLSearchParams({ session_id: sessionId, audience, emphasis, length })
     router.push(`/generate?${params.toString()}`)
   }
 
   if (!sessionId) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#FAFAF7" }}>
-        <div className="text-center">
-          <p className="text-sm font-sans mb-4" style={{ color: "#6B7280" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-page)" }}>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-tertiary)", marginBottom: "16px", letterSpacing: "0.06em" }}>
             No session found. Please upload data first.
           </p>
-          <Link
-            href="/ingest"
-            className="text-sm font-sans underline"
-            style={{ color: "#4C566A" }}
-          >
+          <Link href="/ingest" style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--accent)", borderBottom: "1px solid var(--accent-dim)", paddingBottom: "1px", letterSpacing: "0.06em" }}>
             Go to upload
           </Link>
         </div>
@@ -131,85 +127,99 @@ export default function ConfigurePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#FAFAF7" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-page)" }}>
       {/* Header */}
-      <header className="border-b flex items-center justify-between px-8 py-4" style={{ borderColor: "#E5E4DF" }}>
-        <Link href="/" className="text-xs tracking-widest uppercase font-sans font-medium" style={{ color: "#4C566A", letterSpacing: "0.18em" }}>
+      <header style={{
+        borderBottom: "1px solid var(--border-subtle)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "18px 48px", background: "var(--bg-page)",
+      }}>
+        <Link
+          href="/"
+          style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.22em", textTransform: "uppercase", fontWeight: 700, color: "var(--text-primary)" }}
+        >
           Abnormal Security
         </Link>
         <StepBar current={2} />
-        <div className="w-36" />
+        <div style={{ width: "160px" }} />
       </header>
 
       {/* Body */}
-      <main className="flex-1 flex flex-col items-center px-6 py-16">
-        <div className="w-full max-w-2xl flex flex-col gap-10">
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "64px 24px" }}>
+        <div style={{ width: "100%", maxWidth: "680px", display: "flex", flexDirection: "column", gap: "40px" }}>
 
           {/* Heading */}
           <div>
-            <h1 className="font-serif text-4xl mb-2" style={{ color: "#1A1A1A" }}>
+            <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "36px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px", letterSpacing: "-0.02em" }}>
               Configure your brief
             </h1>
-            <p className="text-sm font-sans" style={{ color: "#6B7280" }}>
+            <p style={{ fontFamily: "var(--font-sans)", fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.6 }}>
               Same data, different story. The audience shapes the narrative arc, tone, and closing ask.
             </p>
           </div>
 
           {/* Audience selector */}
           <section>
-            <h2 className="text-xs font-sans uppercase tracking-wide font-semibold mb-4" style={{ color: "#9CA3AF", letterSpacing: "0.1em" }}>
+            <h2 style={{
+              fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em",
+              textTransform: "uppercase", fontWeight: 700, color: "var(--text-tertiary)",
+              marginBottom: "16px",
+            }}>
               Who is reading this?
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               {AUDIENCE_OPTIONS.map((opt) => {
                 const selected = audience === opt.id
                 return (
                   <button
                     key={opt.id}
                     onClick={() => setAudience(opt.id)}
-                    className="text-left rounded-xl border-2 p-6 transition-all hover:shadow-sm"
                     style={{
-                      borderColor: selected ? "#4C566A" : "#E5E4DF",
-                      background: selected ? "#F0EFE9" : "#FFFFFF",
+                      textAlign: "left",
+                      borderRadius: "8px",
+                      border: `1.5px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
+                      padding: "20px",
+                      background: selected ? "rgba(255,91,73,0.07)" : "var(--bg-surface)",
+                      cursor: "pointer",
+                      transition: "border-color 0.15s, background 0.15s",
                     }}
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "12px" }}>
                       <div>
-                        <span
-                          className="inline-block text-xs font-sans font-semibold tracking-widest uppercase px-2 py-0.5 rounded mb-2"
-                          style={{
-                            background: selected ? "#4C566A" : "#F0EFE9",
-                            color: selected ? "#FAFAF7" : "#4C566A",
-                            letterSpacing: "0.12em",
-                          }}
-                        >
+                        <span style={{
+                          display: "inline-block",
+                          fontFamily: "var(--font-mono)", fontSize: "9px", fontWeight: 700,
+                          letterSpacing: "0.12em", textTransform: "uppercase",
+                          padding: "2px 8px", borderRadius: "2px", marginBottom: "8px",
+                          background: selected ? "var(--accent)" : "var(--bg-surface-2)",
+                          color: selected ? "#fff" : "var(--text-secondary)",
+                        }}>
                           {opt.label}
                         </span>
-                        <p className="text-sm font-sans font-medium" style={{ color: "#1A1A1A" }}>
+                        <p style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, color: "var(--text-primary)" }}>
                           {opt.role}
                         </p>
                       </div>
-                      <div
-                        className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-1"
-                        style={{
-                          borderColor: selected ? "#4C566A" : "#D1CFC6",
-                          background: selected ? "#4C566A" : "transparent",
-                        }}
-                      >
-                        {selected && (
-                          <div className="w-2 h-2 rounded-full" style={{ background: "#FAFAF7" }} />
-                        )}
+                      <div style={{
+                        width: "18px", height: "18px", borderRadius: "50%",
+                        border: `2px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
+                        background: selected ? "var(--accent)" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, marginTop: "2px",
+                        transition: "border-color 0.15s, background 0.15s",
+                      }}>
+                        {selected && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#fff" }} />}
                       </div>
                     </div>
 
-                    <p className="text-xs font-sans italic mb-3" style={{ color: "#9CA3AF" }}>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", fontStyle: "italic", color: "var(--text-tertiary)", marginBottom: "12px", letterSpacing: "0.04em" }}>
                       {opt.arc}
                     </p>
 
-                    <ul className="flex flex-col gap-1.5">
+                    <ul style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       {opt.bullets.map((b) => (
-                        <li key={b} className="flex items-center gap-2 text-xs font-sans" style={{ color: "#4B5563" }}>
-                          <div className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: "#4C566A" }} />
+                        <li key={b} style={{ display: "flex", alignItems: "center", gap: "8px", fontFamily: "var(--font-sans)", fontSize: "12px", color: "var(--text-secondary)", listStyle: "none" }}>
+                          <div style={{ width: "4px", height: "4px", borderRadius: "50%", flexShrink: 0, background: selected ? "var(--accent)" : "var(--text-tertiary)" }} />
                           {b}
                         </li>
                       ))}
@@ -222,26 +232,34 @@ export default function ConfigurePage() {
 
           {/* Emphasis */}
           <section>
-            <h2 className="text-xs font-sans uppercase tracking-wide font-semibold mb-4" style={{ color: "#9CA3AF", letterSpacing: "0.1em" }}>
+            <h2 style={{
+              fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em",
+              textTransform: "uppercase", fontWeight: 700, color: "var(--text-tertiary)",
+              marginBottom: "16px",
+            }}>
               Narrative emphasis
             </h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
               {EMPHASIS_OPTIONS.map((opt) => {
                 const selected = emphasis === opt.id
                 return (
                   <button
                     key={opt.id}
                     onClick={() => setEmphasis(opt.id)}
-                    className="rounded-lg border-2 p-4 text-center transition-all hover:shadow-sm"
                     style={{
-                      borderColor: selected ? "#4C566A" : "#E5E4DF",
-                      background: selected ? "#F0EFE9" : "#FFFFFF",
+                      borderRadius: "6px",
+                      border: `1.5px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
+                      padding: "14px 12px",
+                      textAlign: "center",
+                      background: selected ? "rgba(255,91,73,0.07)" : "var(--bg-surface)",
+                      cursor: "pointer",
+                      transition: "border-color 0.15s, background 0.15s",
                     }}
                   >
-                    <p className="text-sm font-sans font-semibold mb-1" style={{ color: selected ? "#4C566A" : "#1A1A1A" }}>
+                    <p style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, marginBottom: "4px", color: selected ? "var(--accent)" : "var(--text-primary)" }}>
                       {opt.label}
                     </p>
-                    <p className="text-xs font-sans" style={{ color: "#9CA3AF" }}>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.04em" }}>
                       {opt.desc}
                     </p>
                   </button>
@@ -252,26 +270,34 @@ export default function ConfigurePage() {
 
           {/* Length */}
           <section>
-            <h2 className="text-xs font-sans uppercase tracking-wide font-semibold mb-4" style={{ color: "#9CA3AF", letterSpacing: "0.1em" }}>
+            <h2 style={{
+              fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em",
+              textTransform: "uppercase", fontWeight: 700, color: "var(--text-tertiary)",
+              marginBottom: "16px",
+            }}>
               Brief length
             </h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
               {LENGTH_OPTIONS.map((opt) => {
                 const selected = length === opt.id
                 return (
                   <button
                     key={opt.id}
                     onClick={() => setLength(opt.id)}
-                    className="rounded-lg border-2 p-4 text-center transition-all hover:shadow-sm"
                     style={{
-                      borderColor: selected ? "#4C566A" : "#E5E4DF",
-                      background: selected ? "#F0EFE9" : "#FFFFFF",
+                      borderRadius: "6px",
+                      border: `1.5px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
+                      padding: "14px 12px",
+                      textAlign: "center",
+                      background: selected ? "rgba(255,91,73,0.07)" : "var(--bg-surface)",
+                      cursor: "pointer",
+                      transition: "border-color 0.15s, background 0.15s",
                     }}
                   >
-                    <p className="text-sm font-sans font-semibold mb-1" style={{ color: selected ? "#4C566A" : "#1A1A1A" }}>
+                    <p style={{ fontFamily: "var(--font-sans)", fontSize: "13px", fontWeight: 600, marginBottom: "4px", color: selected ? "var(--accent)" : "var(--text-primary)" }}>
                       {opt.label}
                     </p>
-                    <p className="text-xs font-sans" style={{ color: "#9CA3AF" }}>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.04em" }}>
                       {opt.desc}
                     </p>
                   </button>
@@ -280,22 +306,29 @@ export default function ConfigurePage() {
             </div>
           </section>
 
-          <hr className="rule" />
+          <div style={{ height: "1px", background: "var(--border-subtle)" }} />
 
           {/* Summary + CTA */}
-          <div className="flex items-center justify-between">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <p className="text-sm font-sans font-medium" style={{ color: "#1A1A1A" }}>
+              <p style={{ fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: 500, color: "var(--text-primary)" }}>
                 {audience === "ciso" ? "CISO brief" : "CSM QBR brief"} &middot; {emphasis.charAt(0).toUpperCase() + emphasis.slice(1)} &middot; {length.charAt(0).toUpperCase() + length.slice(1)}
               </p>
-              <p className="text-xs font-sans mt-0.5" style={{ color: "#9CA3AF" }}>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-tertiary)", marginTop: "4px", letterSpacing: "0.06em" }}>
                 5-stage AI pipeline &middot; ~60 seconds
               </p>
             </div>
             <button
               onClick={handleGenerate}
-              className="inline-flex items-center gap-2 px-7 py-3 rounded text-sm font-medium font-sans transition-opacity hover:opacity-90"
-              style={{ background: "#4C566A", color: "#FAFAF7" }}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "8px",
+                padding: "12px 28px", borderRadius: "4px",
+                fontFamily: "var(--font-sans)", fontSize: "14px", fontWeight: 600,
+                background: "var(--accent)", color: "#fff", cursor: "pointer",
+                border: "none", transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
             >
               Generate brief
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
