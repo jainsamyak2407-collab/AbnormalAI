@@ -1,30 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, useReducedMotion } from "framer-motion"
-import { listDatasets, createSessionFromDataset } from "@/lib/api"
+import { ingestSample } from "@/lib/api"
 
 export default function LandingPage() {
   const router = useRouter()
   const prefersReduced = useReducedMotion()
-  const [datasetCount, setDatasetCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-
-  useEffect(() => {
-    listDatasets()
-      .then((ds) => setDatasetCount(ds.length))
-      .catch(() => setDatasetCount(0))
-  }, [])
 
   const handleUseSample = async () => {
     setLoading(true)
     setErr(null)
     try {
-      const { session_id } = await createSessionFromDataset("ds_meridian_sample")
-      router.push(`/configure?session=${session_id}`)
+      const { session_id } = await ingestSample()
+      router.push(`/configure?session_id=${session_id}`)
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load sample.")
       setLoading(false)
@@ -69,7 +62,7 @@ export default function LandingPage() {
           </span>
         </div>
         <Link
-          href="/datasets"
+          href="/ingest"
           style={{
             fontFamily: "var(--font-mono)", fontSize: "9px", letterSpacing: "0.14em",
             textTransform: "uppercase", color: "var(--accent)",
@@ -77,7 +70,7 @@ export default function LandingPage() {
             paddingBottom: "1px",
           }}
         >
-          DATA LIBRARY
+          UPLOAD DATA
         </Link>
       </header>
 
@@ -142,12 +135,12 @@ export default function LandingPage() {
           Upload your data, pick your audience, get a consulting-grade brief in under three minutes.
         </motion.p>
 
-        {/* Three-path cards */}
+        {/* Two-path cards */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: dur, delay: stagger * 6, ease: [0.22, 1, 0.36, 1] }}
-          style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "64px" }}
+          style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", marginBottom: "64px" }}
         >
           {/* Card 1: Use Meridian sample */}
           <motion.button
@@ -190,8 +183,8 @@ export default function LandingPage() {
             </span>
           </motion.button>
 
-          {/* Card 2: Open data library */}
-          <Link href="/datasets" style={{ textDecoration: "none" }}>
+          {/* Card 2: Upload new data */}
+          <Link href="/ingest" style={{ textDecoration: "none" }}>
             <motion.div
               whileHover={prefersReduced ? {} : { y: -3, transition: { duration: 0.18 } }}
               style={{
@@ -204,50 +197,14 @@ export default function LandingPage() {
                 transition: "border-color 0.2s",
               }}
             >
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "8px" }}>
-                DATA LIBRARY
-                {datasetCount != null && (
-                  <span style={{
-                    padding: "1px 6px",
-                    background: "var(--border-strong)",
-                    color: "var(--text-secondary)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "8px",
-                    borderRadius: "2px",
-                  }}>{datasetCount}</span>
-                )}
-              </span>
-              <span style={{ fontFamily: "var(--font-serif)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.2 }}>
-                Open data<br />library
-              </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.06em", lineHeight: 1.5 }}>
-                View, manage, and generate<br />from saved datasets
-              </span>
-            </motion.div>
-          </Link>
-
-          {/* Card 3: Upload new dataset */}
-          <Link href="/datasets/new" style={{ textDecoration: "none" }}>
-            <motion.div
-              whileHover={prefersReduced ? {} : { y: -3, transition: { duration: 0.18 } }}
-              style={{
-                padding: "28px 24px",
-                border: "1px solid var(--border-subtle)",
-                cursor: "pointer",
-                display: "flex", flexDirection: "column", gap: "12px",
-                height: "100%", borderRadius: "4px",
-                background: "transparent",
-                transition: "border-color 0.2s",
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>
-                NEW DATASET
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-secondary)" }}>
+                YOUR DATA
               </span>
               <span style={{ fontFamily: "var(--font-serif)", fontSize: "20px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.2 }}>
                 Upload new<br />dataset
               </span>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.06em", lineHeight: 1.5 }}>
-                Drop CSVs + account.json<br />to create a new dataset
+                Drop CSVs + account.json<br />to generate a brief from your data
               </span>
             </motion.div>
           </Link>
