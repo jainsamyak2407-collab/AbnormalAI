@@ -12,7 +12,7 @@ from typing import Optional
 
 from anthropic import AsyncAnthropic
 
-from ai.client import OPUS_4_7_MODEL
+from ai.client import SONNET_MODEL
 from ai.prompt_utils import load_prompt, fill_template, extract_json
 from analytics.metrics import MetricsBundle
 
@@ -179,7 +179,7 @@ async def run(
     })
 
     response = await client.messages.create(
-        model=OPUS_4_7_MODEL,
+        model=SONNET_MODEL,
         max_tokens=4000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
