@@ -18,6 +18,14 @@ SCHEMA_SIGNATURES: dict[str, set[str]] = {
     "user_reporting": {"reporting_rate", "credential_submission_rate", "department"},
     "ato_events": {"ato_id", "risk_score", "risk_factors", "outcome"},
     "industry_benchmarks": {"metric_name", "percentile", "value"},
+    # v2 / new-format schemas — normalized to canonical schemas in validator
+    "email_attacks": {"attack_id", "attack_type", "remediation_action", "recipient_email"},
+    "security_posture": {"evaluation_id", "check_name", "status", "risk_level"},
+    "account_takeover_events": {"event_id", "risk_score", "trigger_event_type", "resolution"},
+    "phishing_simulations": {"simulation_id", "credentials_submitted", "reported_to_aism"},
+    "employees": {"employee_id", "is_vip", "email", "department"},
+    "benchmarks_wide": {"metric_name", "p25", "p50", "p75"},
+    "aism_submissions": {"submission_id", "triage_result", "reporter_email"},
 }
 
 ACCOUNT_JSON_KEYS: set[str] = {"company_name", "tenants"}

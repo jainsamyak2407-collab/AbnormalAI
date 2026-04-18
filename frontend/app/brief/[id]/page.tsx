@@ -976,7 +976,7 @@ export default function BriefPage() {
                 ABNORMAL BRIEF STUDIO · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
               </span>
               <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint }}>
-                CLAUDE SONNET 4.6 · 6-STAGE PIPELINE
+                ABNORMAL SECURITY · AI-NATIVE INTELLIGENCE
               </span>
             </div>
           </div>

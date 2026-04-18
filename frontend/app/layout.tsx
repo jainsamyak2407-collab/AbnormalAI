@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
-import { Inter, Source_Serif_4, IBM_Plex_Mono } from "next/font/google"
+import { Plus_Jakarta_Sans, Source_Serif_4, IBM_Plex_Mono } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-jakarta",
   display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 })
 
 const sourceSerif = Source_Serif_4({
@@ -34,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable} ${ibmMono.variable}`}>
+    <html lang="en" className={`${jakarta.variable} ${sourceSerif.variable} ${ibmMono.variable}`}>
       <body className="min-h-screen antialiased">
         {children}
       </body>

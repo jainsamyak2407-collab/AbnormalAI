@@ -2,37 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Design tokens ─────────────────────────────────────────────────── */
+/* ─── Abnormal Security Brand Tokens ────────────────────────────────── */
 :root {
-  /* App chrome — dark */
-  --bg-page:        #0A0B10;
-  --bg-surface:     #111218;
-  --bg-surface-2:   #191B24;
-  --border-subtle:  #22242E;
-  --border-strong:  #2D3040;
-  --text-primary:   #F5F5F7;
-  --text-secondary: #9BA3B4;
-  --text-tertiary:  #6B7280;
+  /* App chrome — Abnormal black */
+  --bg-page:        #000000;
+  --bg-surface:     #0F0F0F;
+  --bg-surface-2:   #1A1A1A;
+  --bg-surface-3:   #242424;
+  --border-subtle:  #1E1E1E;
+  --border-strong:  #2D2D2D;
+  --text-primary:   #FFFFFF;
+  --text-secondary: #A0A8B4;
+  --text-tertiary:  #616A78;
 
-  /* Accent */
-  --accent:         #FF5B49;
-  --accent-hover:   #FF7463;
-  --accent-dim:     #BF4537;
+  /* Abnormal Teal — primary accent */
+  --accent:         #00C4B4;
+  --accent-hover:   #00E5D4;
+  --accent-dim:     #007A6F;
+  --accent-bg:      rgba(0,196,180,0.10);
+
+  /* Abnormal Yellow-Green — secondary accent */
+  --accent-yellow:  #C8F135;
+  --accent-yellow-dim: rgba(200,241,53,0.15);
 
   /* Semantic */
-  --success:        #4ADE80;
-  --warning:        #FBBF24;
-  --danger:         #EF4444;
+  --success:        #00C4B4;
+  --warning:        #C8F135;
+  --danger:         #FF4D4D;
 
   /* Brief "paper" surface — light */
   --paper-bg:       #FAFAF7;
-  --paper-text:     #1A1A1A;
+  --paper-text:     #111111;
   --paper-muted:    #6B7280;
   --paper-border:   #E5E4DF;
-  --paper-accent:   #4C566A;
+  --paper-accent:   #00C4B4;
 
   /* Typography */
-  --font-sans:      var(--font-inter), system-ui, sans-serif;
+  --font-sans:      var(--font-jakarta), system-ui, sans-serif;
   --font-serif:     var(--font-source-serif), Georgia, serif;
   --font-mono:      var(--font-ibm-mono), 'Courier New', monospace;
 
@@ -50,6 +56,7 @@
   html {
     background: var(--bg-page);
     color: var(--text-primary);
+    scroll-behavior: smooth;
   }
 
   body {
@@ -60,7 +67,6 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Paper surfaces override to light */
   .paper {
     background: var(--paper-bg);
     color: var(--paper-text);
@@ -71,7 +77,6 @@
     outline-offset: 2px;
   }
 
-  /* Remove default button styles */
   button {
     background: none;
     border: none;
@@ -79,7 +84,6 @@
     font-family: inherit;
   }
 
-  /* Anchor resets */
   a {
     color: inherit;
     text-decoration: none;
@@ -88,23 +92,17 @@
 
 /* ─── Utility classes ────────────────────────────────────────────────── */
 @layer utilities {
-  /* Typography shortcuts */
-  .font-serif {
-    font-family: var(--font-serif);
-  }
+  .font-serif { font-family: var(--font-serif); }
+  .font-mono  { font-family: var(--font-mono); }
 
-  .font-mono {
-    font-family: var(--font-mono);
-  }
-
-  /* Evidence chip — paper context */
+  /* Evidence chip — teal on paper */
   .chip-evidence {
     display: inline-flex;
     align-items: center;
     padding: 0 6px;
     height: 18px;
     border-radius: 3px;
-    background: rgba(255, 91, 73, 0.12);
+    background: rgba(0,196,180,0.12);
     color: var(--accent);
     font-family: var(--font-mono);
     font-size: 10px;
@@ -114,10 +112,7 @@
     transition: background 0.15s ease;
     vertical-align: middle;
   }
-
-  .chip-evidence:hover {
-    background: rgba(255, 91, 73, 0.22);
-  }
+  .chip-evidence:hover { background: rgba(0,196,180,0.22); }
 
   /* Schema detection badge */
   .chip-schema {
@@ -126,26 +121,16 @@
     gap: 4px;
     padding: 3px 10px;
     border-radius: 999px;
-    background: rgba(74, 222, 128, 0.12);
-    color: var(--success);
+    background: rgba(0,196,180,0.12);
+    color: var(--accent);
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 500;
   }
 
-  /* Divider rule (paper context) */
-  .rule {
-    border: none;
-    border-top: 1px solid var(--paper-border);
-  }
+  .rule       { border: none; border-top: 1px solid var(--paper-border); }
+  .rule-dark  { border: none; border-top: 1px solid var(--border-subtle); }
 
-  /* Dark divider rule */
-  .rule-dark {
-    border: none;
-    border-top: 1px solid var(--border-subtle);
-  }
-
-  /* Mono label — small caps style */
   .label-mono {
     font-family: var(--font-mono);
     font-size: 9px;
@@ -155,12 +140,11 @@
     color: var(--text-tertiary);
   }
 
-  /* Accent pill */
   .pill-accent {
     display: inline-block;
     padding: 2px 8px;
     background: var(--accent);
-    color: #fff;
+    color: #000;
     font-family: var(--font-mono);
     font-size: 9px;
     font-weight: 700;
@@ -169,37 +153,49 @@
     border-radius: 2px;
   }
 
-  /* Surface card */
-  .card-surface {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-  }
+  .card-surface   { background: var(--bg-surface);   border: 1px solid var(--border-subtle); border-radius: 8px; }
+  .card-surface-2 { background: var(--bg-surface-2); border: 1px solid var(--border-subtle); border-radius: 8px; }
 
-  .card-surface-2 {
-    background: var(--bg-surface-2);
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-  }
-
-  /* Scrollbar — dark */
   .scrollbar-dark {
     scrollbar-width: thin;
     scrollbar-color: var(--border-strong) transparent;
   }
+  .scrollbar-dark::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-dark::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-dark::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
-  .scrollbar-dark::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+  /* 3D card perspective wrapper */
+  .card-3d {
+    transform-style: preserve-3d;
+    perspective: 1000px;
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease;
+  }
+  .card-3d:hover {
+    box-shadow: 0 24px 60px rgba(0,196,180,0.15), 0 8px 20px rgba(0,0,0,0.4);
   }
 
-  .scrollbar-dark::-webkit-scrollbar-track {
-    background: transparent;
+  /* Teal glow button */
+  .btn-teal {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  }
+  .btn-teal:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,196,180,0.35);
   }
 
-  .scrollbar-dark::-webkit-scrollbar-thumb {
-    background: var(--border-strong);
-    border-radius: 3px;
+  /* Scroll reveal base state */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1);
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -208,7 +204,46 @@
   to { transform: rotate(360deg); }
 }
 
-/* Reduce all motion for users who prefer it */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-20px) scale(1.02); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-12px) rotate(2deg); }
+  66%       { transform: translateY(8px) rotate(-1deg); }
+}
+
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-teal {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes scan-line {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(800%); opacity: 0; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes counter-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduce all motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -220,9 +255,7 @@
 
 /* ─── Print styles ───────────────────────────────────────────────────── */
 @media print {
-  .chip-evidence {
-    display: none !important;
-  }
+  .chip-evidence { display: none !important; }
 
   .print-footnote-ref {
     font-size: 7pt;
