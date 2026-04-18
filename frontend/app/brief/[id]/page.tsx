@@ -8,6 +8,7 @@ import {
   XAxis, YAxis, Tooltip,
 } from "recharts"
 import { getBrief, getEvidence, getSectionPrompt, regenerateSection } from "@/lib/api"
+import type { BriefEvidenceRecord } from "@/lib/types"
 import type { Brief, BriefSection, EvidenceRecord, Exhibit } from "@/lib/types"
 import { ExhibitSlot } from "@/components/brief/ExhibitSlot"
 
@@ -184,18 +185,43 @@ function EvidenceDrawerContent({ record }: { record: EvidenceRecord }) {
   )
 }
 
-function EvidenceDrawer({ evidenceId, briefId, onClose }: { evidenceId: string | null; briefId: string; onClose: () => void }) {
+function EvidenceDrawer({ evidenceId, briefId, embeddedIndex, onClose }: {
+  evidenceId: string | null
+  briefId: string
+  embeddedIndex: Record<string, BriefEvidenceRecord>
+  onClose: () => void
+}) {
   const [record, setRecord] = useState<EvidenceRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
     if (!evidenceId) { setRecord(null); return }
-    setLoading(true); setErr(null)
+
+    // Show embedded data instantly if available (has value + calculation)
+    const embedded = embeddedIndex[evidenceId]
+    if (embedded) {
+      setRecord({
+        evidence_id: evidenceId,
+        metric_label: embedded.metric_label,
+        metric_type: embedded.metric_type as EvidenceRecord["metric_type"],
+        calculation_description: embedded.calculation_description,
+        source_row_count: embedded.source_rows?.length ?? 0,
+        value: embedded.value,
+        unit: embedded.unit ?? null,
+        rows: embedded.source_rows?.length ? embedded.source_rows : null,
+      })
+    }
+
+    // Fetch full record (with source rows, criteria, segments) from network
+    setLoading(!embedded); setErr(null)
     getEvidence(briefId, evidenceId)
       .then((r) => { setRecord(r); setLoading(false) })
-      .catch((e) => { setErr(e instanceof Error ? e.message : "Not found."); setLoading(false) })
-  }, [evidenceId, briefId])
+      .catch((e) => {
+        if (!embedded) setErr(e instanceof Error ? e.message : "Not found.")
+        setLoading(false)
+      })
+  }, [evidenceId, briefId, embeddedIndex])
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -928,7 +954,12 @@ export default function BriefPage() {
       <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} />
 
       {/* Evidence drawer */}
-      <EvidenceDrawer evidenceId={activeEvidence} briefId={briefId} onClose={() => setActiveEvidence(null)} />
+      <EvidenceDrawer
+        evidenceId={activeEvidence}
+        briefId={briefId}
+        embeddedIndex={brief.evidence_index ?? {}}
+        onClose={() => setActiveEvidence(null)}
+      />
     </div>
   )
 }
