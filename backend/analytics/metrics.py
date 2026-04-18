@@ -601,7 +601,8 @@ def _compute_success_criteria(
     evidence: EvidenceIndex,
 ) -> dict[str, dict]:
     """Evaluate success criteria from account.json against computed metrics."""
-    criteria = account.get("success_criteria", {})
+    _sc_raw = account.get("success_criteria", {})
+    criteria = _sc_raw if isinstance(_sc_raw, dict) else {}
     status: dict[str, dict] = {}
 
     # vip_inbox_attacks_per_month_max

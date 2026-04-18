@@ -53,7 +53,9 @@ def detect_anomalies(
         aid_counter[0] += 1
         return f"A{aid_counter[0]:03d}"
 
-    success_criteria = account.get("success_criteria", {})
+    # success_criteria may be a dict (internal format) or a list of strings (external format)
+    _sc_raw = account.get("success_criteria", {})
+    success_criteria = _sc_raw if isinstance(_sc_raw, dict) else {}
 
     # -----------------------------------------------------------------------
     # Rule 1: VIP attack in current month exceeding success criterion
