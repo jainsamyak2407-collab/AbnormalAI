@@ -70,6 +70,29 @@ Fill:
 - `closing_ask`: the brief's closing.ask field rendered for slides. One to two sentences. Audience-appropriate.
 - `footer`: as above.
 
+## How to use callout_seeds
+
+Each callout_seed has a `source_observation_id` (e.g. "obs_04") and an `angle`.
+
+To write the callout:
+1. Find the observation in the FULL BRIEF's `observations` list where `id == source_observation_id`.
+2. Use the observation's `claim`, `magnitude`, `direction`, and `evidence_refs` fields.
+3. The `angle` tells you which dimension to foreground:
+   - **magnitude** → the raw number is the callout `number` field
+   - **tension** → the unexpected direction (e.g., "rose 3x while peers held flat")
+   - **context** → the comparative frame (benchmark rank, peer comparison, trend)
+4. Never invent numbers. Every number in a callout must come from the observation or its evidence.
+
+If callout_seeds is empty, pick the 3 strongest observations from `brief.observations` that match the slide's theme (positive/improving for slide 3, gaps/risks for slide 4).
+
+## How to use recommendation_selection (slide 5 only)
+
+`recommendation_selection` is a list of recommendation IDs (e.g. ["rec_01", "rec_02", "rec_04"]).
+Find each recommendation in the FULL BRIEF's `recommendations` list where `id == the listed ID`.
+Use that recommendation's `action`, `gap`, `expected_impact`, `rationale`, and `evidence_refs` as the basis for the SlideRecommendation fields. Do not invent recommendations.
+
+If recommendation_selection is empty, pick the 3 strongest recommendations from `brief.recommendations`.
+
 ## Contrast examples
 
 ### Weak vs strong headlines

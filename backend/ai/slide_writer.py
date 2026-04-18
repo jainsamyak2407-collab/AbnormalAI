@@ -81,10 +81,12 @@ async def write_one_slide(
     if exhibit_id and exhibit_id in exhibits_registry:
         plan_with_data["chart_data_for_reference"] = exhibits_registry[exhibit_id]
 
-    # Trim brief: skip outline (large) but keep sections, thesis, recommendations, observations
     brief_for_prompt = {
         k: brief[k]
-        for k in ("thesis", "closing_ask", "audience", "company_name", "period", "success_criteria")
+        for k in (
+            "thesis", "closing_ask", "audience", "company_name", "period",
+            "success_criteria", "observations", "recommendations", "sections",
+        )
         if k in brief
     }
 
@@ -101,7 +103,7 @@ async def write_one_slide(
 
     response = await client.messages.create(
         model=SONNET_MODEL,
-        max_tokens=1500,
+        max_tokens=2000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )

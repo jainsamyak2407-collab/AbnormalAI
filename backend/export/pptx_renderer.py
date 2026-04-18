@@ -151,16 +151,16 @@ def _build_thesis_slide(slide, content: dict) -> None:
 
     thesis: str = content.get("thesis_sentence") or ""
     _add_text(slide, thesis,
-              x=MARGIN_LR_IN, y=1.6, w=11.5, h=2.8,
-              font_name=FONTS["serif"], font_pt=40,
+              x=MARGIN_LR_IN, y=1.8, w=11.5, h=3.2,
+              font_name=FONTS["serif"], font_pt=38,
               color_key="ink_on_dark", align=PP_ALIGN.LEFT)
 
     tagline: str = content.get("thesis_tagline") or ""
     if tagline:
         _add_text(slide, tagline,
-                  x=MARGIN_LR_IN, y=4.6, w=9.0, h=0.6,
+                  x=MARGIN_LR_IN, y=5.1, w=9.0, h=0.6,
                   font_name=FONTS["sans"], font_pt=14,
-                  color_key="ink_secondary", align=PP_ALIGN.LEFT)
+                  color_key="accent", align=PP_ALIGN.LEFT)
 
     _add_footer(slide, content.get("footer", ""), dark_bg=True)
 
@@ -313,7 +313,7 @@ def _build_ask_slide(slide, content: dict) -> None:
                   font_name=FONTS["serif"], font_pt=16,
                   color_key="ink_on_dark", align=PP_ALIGN.LEFT)
 
-    _add_footer(slide, content.get("footer", ""))
+    _add_footer(slide, content.get("footer", ""), dark_bg=True)
 
 
 # ── public API ────────────────────────────────────────────────────────────────
