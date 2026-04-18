@@ -5,15 +5,15 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, Tooltip, ReferenceLine, Cell,
+  XAxis, YAxis, Tooltip,
 } from "recharts"
-import { getBrief, getEvidence, getSectionPrompt, regenerateSection, getBriefEvidenceIndex } from "@/lib/api"
-import type { Brief, BriefSection, EvidenceRecord } from "@/lib/types"
+import { getBrief, getEvidence, getSectionPrompt, regenerateSection } from "@/lib/api"
+import type { Brief, BriefSection, EvidenceRecord, Exhibit } from "@/lib/types"
+import { ExhibitSlot } from "@/components/brief/ExhibitSlot"
 
 const MONO = "var(--font-mono)"
 const SERIF = "var(--font-serif)"
 
-// Paper palette (brief document is always light)
 const P = {
   text:    "#1A1A1A",
   muted:   "#6B7280",
@@ -25,11 +25,20 @@ const P = {
   coral:   "#FF5B49",
   success: "#16A34A",
   danger:  "#C0392B",
+  warning: "#B45309",
 }
 
 // ---------------------------------------------------------------------------
-// Evidence chip parser
+// Helpers
 // ---------------------------------------------------------------------------
+
+function sectionId(s: BriefSection) {
+  return s.section_id || s.id || ""
+}
+
+function sectionContent(s: BriefSection) {
+  return s.prose_inline || s.content || ""
+}
 
 function parseContent(content: string, onChip: (id: string) => void) {
   const parts = content.split(/(\[E\d+\])/g)
@@ -47,142 +56,11 @@ function parseContent(content: string, onChip: (id: string) => void) {
 }
 
 // ---------------------------------------------------------------------------
-// Exhibit chart — maps exhibit name → EvidenceRecord → Recharts chart
-// ---------------------------------------------------------------------------
-
-function ExhibitChart({ exhibitName, evidenceIndex }: { exhibitName: string; evidenceIndex: EvidenceRecord[] }) {
-  // Fuzzy-match exhibit name to an evidence record by metric_label
-  const record = evidenceIndex.find((r) => {
-    const label = r.metric_label.toLowerCase()
-    const name = exhibitName.toLowerCase()
-    // Exact or substring match
-    return label === name || label.includes(name.split(" ").slice(0, 3).join(" ").toLowerCase())
-      || name.includes(label.split(" ").slice(0, 3).join(" ").toLowerCase())
-  }) ?? null
-
-  if (!record) return null
-
-  const mt = record.metric_type
-
-  // Breakdown → horizontal or vertical bar chart
-  if (mt === "breakdown" && record.segments && record.segments.length > 0) {
-    const data = record.segments.map((s) => ({
-      name: s.label,
-      value: typeof s.value === "number" ? s.value : parseFloat(String(s.value)) || 0,
-      pct: Math.round(s.share * 100),
-    }))
-    const isMonthly = data.some((d) =>
-      /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(d.name)
-    )
-
-    return (
-      <div style={{ margin: "24px 0 32px", padding: "20px 24px", background: P.surface, border: `1px solid ${P.border}`, borderRadius: "4px" }}>
-        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "16px" }}>
-          EXHIBIT · {exhibitName.toUpperCase()}
-        </p>
-        <ResponsiveContainer width="100%" height={isMonthly ? 140 : Math.max(80, data.length * 28)}>
-          {isMonthly ? (
-            <LineChart data={data} margin={{ top: 4, right: 12, bottom: 4, left: 0 }}>
-              <XAxis dataKey="name" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: P.faint }} axisLine={false} tickLine={false} />
-              <YAxis hide />
-              <Tooltip
-                contentStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, background: P.bg, border: `1px solid ${P.border}`, borderRadius: 3 }}
-                formatter={(v: number) => [v.toLocaleString(), ""]}
-                labelStyle={{ color: P.accent }}
-              />
-              <Line type="monotone" dataKey="value" stroke={P.accent} strokeWidth={2} dot={{ fill: P.accent, r: 3 }} activeDot={{ r: 4 }} />
-            </LineChart>
-          ) : (
-            <BarChart data={data} layout="vertical" margin={{ top: 0, right: 48, bottom: 0, left: 0 }}>
-              <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" tick={{ fontFamily: "var(--font-mono)", fontSize: 9, fill: P.muted }} axisLine={false} tickLine={false} width={140} />
-              <Tooltip
-                contentStyle={{ fontFamily: "var(--font-mono)", fontSize: 10, background: P.bg, border: `1px solid ${P.border}`, borderRadius: 3 }}
-                formatter={(v: number) => [v.toLocaleString(), ""]}
-              />
-              <Bar dataKey="value" radius={[0, 2, 2, 0]}>
-                {data.map((_, i) => (
-                  <Cell key={i} fill={i === 0 ? P.accent : "#CBD5E0"} />
-                ))}
-              </Bar>
-            </BarChart>
-          )}
-        </ResponsiveContainer>
-        <p style={{ fontFamily: MONO, fontSize: "8px", color: P.faint, marginTop: "8px", letterSpacing: "0.06em" }}>
-          {record.metric_label} · {record.source_row_count.toLocaleString()} source rows
-        </p>
-      </div>
-    )
-  }
-
-  // Scalar with unit — stat card
-  if (mt === "scalar" && record.value != null) {
-    const display = typeof record.value === "number"
-      ? Number.isInteger(record.value) ? record.value.toLocaleString() : record.value.toFixed(1)
-      : String(record.value)
-    return (
-      <div style={{ margin: "24px 0 32px", padding: "20px 24px", background: P.surface, border: `1px solid ${P.border}`, borderRadius: "4px", display: "flex", alignItems: "baseline", gap: "16px" }}>
-        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, flexShrink: 0 }}>
-          EXHIBIT · {exhibitName.toUpperCase()}
-        </p>
-        <p style={{ fontFamily: SERIF, fontSize: "32px", fontWeight: 700, color: P.accent, lineHeight: 1 }}>
-          {display}
-          {record.unit && <span style={{ fontFamily: MONO, fontSize: "14px", color: P.faint, marginLeft: "6px" }}>{record.unit}</span>}
-        </p>
-        <p style={{ fontFamily: MONO, fontSize: "9px", color: P.muted, lineHeight: 1.5, flexShrink: 0 }}>
-          {record.metric_label}<br />{record.calculation_description.split(".")[0]}.
-        </p>
-      </div>
-    )
-  }
-
-  // Criteria table
-  if (mt === "criteria_table" && record.criteria_rows && record.criteria_rows.length > 0) {
-    return (
-      <div style={{ margin: "24px 0 32px" }}>
-        <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "10px" }}>
-          EXHIBIT · {exhibitName.toUpperCase()}
-        </p>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: P.surface }}>
-              {["Criterion", "Target", "Actual", "Status"].map((h) => (
-                <th key={h} style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: P.accent, padding: "8px 12px", textAlign: "left", borderBottom: `1px solid ${P.border}` }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {record.criteria_rows.map((row, i) => {
-              const r = row as Record<string, unknown>
-              const met = r.met === true || r.met === "true"
-              return (
-                <tr key={i} style={{ borderBottom: `1px solid ${P.border}` }}>
-                  <td style={{ fontFamily: MONO, fontSize: "10px", color: P.text, padding: "8px 12px" }}>{String(r.description ?? r.criterion ?? "")}</td>
-                  <td style={{ fontFamily: MONO, fontSize: "10px", color: P.muted, padding: "8px 12px" }}>{String(r.target ?? "")}</td>
-                  <td style={{ fontFamily: MONO, fontSize: "10px", color: P.text, padding: "8px 12px", fontWeight: 600 }}>{String(r.actual ?? "")}</td>
-                  <td style={{ padding: "8px 12px" }}>
-                    <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "2px", background: met ? "rgba(22,163,74,0.1)" : "rgba(192,57,43,0.1)", color: met ? P.success : P.danger }}>
-                      {met ? "PASS" : "FAIL"}
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
-
-  return null
-}
-
-// ---------------------------------------------------------------------------
-// Evidence drawer — typed renderers per metric_type
+// Evidence drawer content — typed per metric_type
 // ---------------------------------------------------------------------------
 
 function EvidenceDrawerDataTable({ rows, totalCount }: { rows: Record<string, unknown>[]; totalCount: number }) {
-  if (rows.length === 0) return null
+  if (!rows.length) return null
   const cols = Object.keys(rows[0])
   return (
     <div>
@@ -234,7 +112,7 @@ function EvidenceDrawerContent({ record }: { record: EvidenceRecord }) {
             {typeof record.value === "number"
               ? Number.isInteger(record.value) ? record.value.toLocaleString() : record.value.toFixed(2)
               : record.value}
-            {record.unit && <span style={{ fontSize: "16px", marginLeft: "6px", color: P.faint }}>{record.unit}</span>}
+            {record.unit && <span style={{ fontSize: "16px", marginLeft: "6px", color: P.faint, fontFamily: MONO }}>{record.unit}</span>}
           </p>
         </div>
       )}
@@ -363,7 +241,7 @@ function EvidenceDrawer({ evidenceId, briefId, onClose }: { evidenceId: string |
 }
 
 // ---------------------------------------------------------------------------
-// Steer / Edit-prompt modal
+// Steer modal
 // ---------------------------------------------------------------------------
 
 function SteerModal({ briefId, section, onClose, onRegenerated }: {
@@ -376,13 +254,15 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
   const [regenerating, setRegenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const sid = sectionId(section)
+
   const handleLoadPrompt = useCallback(async () => {
     if (promptData) return
     setLoadingPrompt(true)
-    try { setPromptData(await getSectionPrompt(briefId, section.id)) }
+    try { setPromptData(await getSectionPrompt(briefId, sid)) }
     catch (e) { setError(e instanceof Error ? e.message : "Failed.") }
     finally { setLoadingPrompt(false) }
-  }, [briefId, section.id, promptData])
+  }, [briefId, sid, promptData])
 
   useEffect(() => { if (tab === "prompt") handleLoadPrompt() }, [tab, handleLoadPrompt])
 
@@ -394,7 +274,7 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 
   const handleRegenerate = async () => {
     setRegenerating(true); setError(null)
-    try { onRegenerated(await regenerateSection(briefId, section.id, steering || undefined)); onClose() }
+    try { onRegenerated(await regenerateSection(briefId, sid, steering || undefined)); onClose() }
     catch (e) { setError(e instanceof Error ? e.message : "Regeneration failed."); setRegenerating(false) }
   }
 
@@ -439,7 +319,7 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
                 Describe what you want different. The AI will rewrite this section with your note as steering.
               </p>
               <textarea value={steering} onChange={(e) => setSteering(e.target.value)}
-                placeholder="e.g. Lead with the credential submission risk. Avoid mentioning department names. Close with a direct budget ask."
+                placeholder="e.g. Lead with the credential submission risk. Close with a direct budget ask."
                 rows={5} style={{
                   width: "100%", padding: "12px", background: "#fff",
                   border: `1px solid ${P.border}`, borderRadius: "4px",
@@ -457,7 +337,7 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
                 <div>
                   <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>SYSTEM PROMPT</p>
                   <pre style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.65, padding: "12px", background: P.surface, borderRadius: "3px", overflowX: "auto", whiteSpace: "pre-wrap", color: "#374151", marginBottom: "20px" }}>{promptData.system_prompt}</pre>
-                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>USER PROMPT (RENDERED)</p>
+                  <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>USER PROMPT</p>
                   <pre style={{ fontFamily: MONO, fontSize: "10px", lineHeight: 1.65, padding: "12px", background: P.surface, borderRadius: "3px", overflowX: "auto", whiteSpace: "pre-wrap", color: "#374151" }}>{promptData.user_prompt}</pre>
                 </div>
               )}
@@ -488,28 +368,40 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 // Section block
 // ---------------------------------------------------------------------------
 
-function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegenerated }: {
-  section: BriefSection; index: number; briefId: string
-  evidenceIndex: EvidenceRecord[]
-  onChip: (id: string) => void; onRegenerated: (s: BriefSection) => void
+function SectionBlock({ section, index, briefId, exhibits, onChip, onRegenerated }: {
+  section: BriefSection
+  index: number
+  briefId: string
+  exhibits: Exhibit[]
+  onChip: (id: string) => void
+  onRegenerated: (s: BriefSection) => void
 }) {
   const [steerOpen, setSteerOpen] = useState(false)
   const [rewriting, setRewriting] = useState(false)
 
+  const sid = sectionId(section)
+  const content = sectionContent(section)
+
   const handleQuickRegen = async () => {
     setRewriting(true)
-    try { onRegenerated(await regenerateSection(briefId, section.id)) }
-    catch { /* silent */ }
+    try { onRegenerated(await regenerateSection(briefId, sid)) }
+    catch { /* non-fatal */ }
     finally { setRewriting(false) }
   }
+
+  // Resolve exhibit objects for this section
+  const exhibitRefs = section.exhibit_refs?.length ? section.exhibit_refs : (section.exhibits ?? [])
+  const sectionExhibits = exhibitRefs
+    .map((ref) => exhibits.find((ex) => ex.exhibit_id === ref))
+    .filter(Boolean) as Exhibit[]
 
   return (
     <>
       <section style={{ opacity: rewriting ? 0.5 : 1, transition: "opacity 0.2s" }} className="brief-section">
-        <div style={{ display: "flex", alignItems: "flex-start", gap: "0" }}>
+        <div style={{ display: "flex", alignItems: "flex-start" }}>
           {/* Section number in margin */}
-          <div style={{ width: "64px", flexShrink: 0, paddingTop: "5px" }}>
-            <span style={{ fontFamily: MONO, fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", color: P.border }}>
+          <div style={{ width: "56px", flexShrink: 0, paddingTop: "4px" }}>
+            <span style={{ fontFamily: MONO, fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", color: P.border }}>
               {String(index + 1).padStart(2, "0")}
             </span>
           </div>
@@ -517,7 +409,7 @@ function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegene
           <div style={{ flex: 1 }}>
             {/* Headline row with hover actions */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", marginBottom: "14px" }}>
-              <h2 style={{ fontFamily: SERIF, fontSize: "21px", fontWeight: 700, lineHeight: 1.35, color: P.text, letterSpacing: "-0.01em" }}>
+              <h2 style={{ fontFamily: SERIF, fontSize: "20px", fontWeight: 600, lineHeight: 1.35, color: P.text, letterSpacing: "-0.01em" }}>
                 {section.headline}
               </h2>
               <div className="section-actions" style={{ display: "flex", gap: "4px", flexShrink: 0, marginTop: "2px" }}>
@@ -545,18 +437,24 @@ function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegene
             </div>
 
             {/* Prose */}
-            <div style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.9, color: "#374151" }}>
-              {parseContent(section.content, onChip)}
+            <div style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.85, color: "#374151" }}>
+              {parseContent(content, onChip)}
             </div>
 
-            {/* Exhibits */}
-            {section.exhibits && section.exhibits.length > 0 && evidenceIndex.length > 0 && (
-              <div>
-                {section.exhibits.map((exhibitName, ei) => (
-                  <ExhibitChart key={ei} exhibitName={exhibitName} evidenceIndex={evidenceIndex} />
-                ))}
+            {/* So what */}
+            {section.so_what && (
+              <div style={{ marginTop: "16px", paddingLeft: "16px", borderLeft: `2px solid ${P.border}` }}>
+                <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "4px" }}>SO WHAT</p>
+                <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.7, color: P.muted, fontStyle: "italic" }}>
+                  {section.so_what}
+                </p>
               </div>
             )}
+
+            {/* Typed exhibits */}
+            {sectionExhibits.length > 0 && sectionExhibits.map((ex) => (
+              <ExhibitSlot key={ex.exhibit_id} exhibit={ex} />
+            ))}
           </div>
         </div>
       </section>
@@ -571,79 +469,56 @@ function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegene
 }
 
 // ---------------------------------------------------------------------------
-// Recommendation card
+// Recommendation card — new schema
 // ---------------------------------------------------------------------------
 
-function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; index: number }) {
-  const r = rec as Record<string, string | string[] | undefined>
-  const priority = r.priority as string | undefined
-  const urgency = r.urgency_signal as string | undefined
-
-  const priorityColor = priority === "critical" ? P.danger : priority === "high" ? "#C05621" : P.muted
+function RecommendationCard({ rec, index }: { rec: { rec_id: string; kind: string; headline: string; expected_impact?: string; rationale?: string; evidence_refs?: string[]; risk_if_unaddressed?: string }; index: number }) {
+  const kindColors: Record<string, string> = {
+    BUDGET: P.warning,
+    HEADCOUNT: P.warning,
+    EXPANSION: P.success,
+    RENEWAL: P.success,
+    POLICY: P.accent,
+    TRAINING: P.accent,
+  }
+  const kindColor = kindColors[rec.kind] ?? P.muted
 
   return (
-    <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${P.border}`, padding: "24px 0" }}>
-      <div style={{ width: "64px", flexShrink: 0, paddingTop: "2px" }}>
+    <div style={{ display: "flex", borderBottom: `1px solid ${P.border}`, padding: "24px 0" }}>
+      <div style={{ width: "56px", flexShrink: 0, paddingTop: "2px" }}>
         <span style={{ fontFamily: SERIF, fontSize: "26px", fontWeight: 700, color: P.border, lineHeight: 1 }}>
           {index + 1}
         </span>
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "10px", flexWrap: "wrap" }}>
-          <p style={{ fontFamily: SERIF, fontSize: "17px", fontWeight: 700, color: P.text, flex: 1, lineHeight: 1.4 }}>
-            {r.action ?? r.title ?? ""}
+          <p style={{ fontFamily: SERIF, fontSize: "17px", fontWeight: 600, color: P.text, flex: 1, lineHeight: 1.4 }}>
+            {rec.headline}
           </p>
-          <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-            {(r.ask_type ?? r.commercial_angle) && (
-              <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 8px", background: P.surface, color: P.accent, border: `1px solid ${P.border}`, borderRadius: "2px" }}>
-                {r.ask_type ?? r.commercial_angle}
-              </span>
-            )}
-            {priority && (
-              <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 8px", background: P.surface, color: priorityColor, border: `1px solid ${P.border}`, borderRadius: "2px" }}>
-                {priority}
-              </span>
-            )}
-          </div>
+          {rec.kind && (
+            <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 8px", background: P.surface, color: kindColor, border: `1px solid ${P.border}`, borderRadius: "2px", flexShrink: 0 }}>
+              {rec.kind}
+            </span>
+          )}
         </div>
 
-        {r.urgency_context && (
-          <p style={{ fontFamily: MONO, fontSize: "9px", color: urgency === "persistent" ? P.danger : P.muted, marginBottom: "8px", lineHeight: 1.5, display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ opacity: 0.6 }}>
-              {urgency === "persistent" ? "▲" : urgency === "emerging" ? "→" : "●"}
-            </span>
-            {r.urgency_context}
-          </p>
-        )}
-
-        {r.gap && (
-          <p style={{ fontFamily: MONO, fontSize: "9px", color: P.muted, marginBottom: "10px", lineHeight: 1.5 }}>
-            <span style={{ color: P.faint, marginRight: "6px", letterSpacing: "0.1em", textTransform: "uppercase", fontSize: "8px" }}>GAP</span>
-            {r.gap}
-          </p>
-        )}
-
-        {r.expected_impact && (
-          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginBottom: "6px" }}>
+        {rec.expected_impact && (
+          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginBottom: "8px" }}>
             <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint, marginRight: "8px" }}>IMPACT</span>
-            {r.expected_impact}
+            {rec.expected_impact}
           </p>
         )}
 
-        {Array.isArray(r.rationale_chain) ? (
-          <ol style={{ margin: "8px 0", paddingLeft: "16px" }}>
-            {(r.rationale_chain as string[]).map((step, i) => (
-              <li key={i} style={{ fontFamily: SERIF, fontSize: "13px", lineHeight: 1.6, color: P.muted, marginBottom: "4px" }}>{step}</li>
-            ))}
-          </ol>
-        ) : r.rationale_chain ? (
-          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: P.muted, fontStyle: "italic" }}>{String(r.rationale_chain)}</p>
-        ) : null}
+        {rec.rationale && (
+          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: P.muted, fontStyle: "italic", marginBottom: "8px" }}>
+            {rec.rationale}
+          </p>
+        )}
 
-        {r.next_step && (
-          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.65, color: "#4B5563", marginTop: "8px" }}>
-            <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint, marginRight: "8px" }}>NEXT</span>
-            {r.next_step}
+        {rec.risk_if_unaddressed && (
+          <p style={{ fontFamily: MONO, fontSize: "9px", color: P.danger, lineHeight: 1.5, display: "flex", alignItems: "flex-start", gap: "6px" }}>
+            <span style={{ flexShrink: 0, marginTop: "1px" }}>▲</span>
+            <span><span style={{ opacity: 0.6, marginRight: "6px" }}>RISK IF UNADDRESSED</span>{rec.risk_if_unaddressed}</span>
           </p>
         )}
       </div>
@@ -652,7 +527,7 @@ function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; inde
 }
 
 // ---------------------------------------------------------------------------
-// Action rail (fixed right sidebar)
+// Action rail
 // ---------------------------------------------------------------------------
 
 function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
@@ -666,9 +541,8 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const rawBrief = brief as unknown as Record<string, unknown>
-  const critique = rawBrief.critique as Record<string, unknown> | undefined
-  const score = typeof critique?.narrative_score === "number" ? critique.narrative_score : null
+  const score = brief._critique?.narrative_score ?? null
+  const audience = brief.metadata?.audience ?? "ciso"
 
   const railActions = [
     {
@@ -697,7 +571,7 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
           <path d="M7 1l2 4h4l-3.5 2.5 1.5 4L7 9l-4 2.5 1.5-4L1 5h4l2-4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ),
-      label: brief.audience === "ciso" ? "→ CSM" : "→ CISO",
+      label: audience === "ciso" ? "→ CSM" : "→ CISO",
       onClick: onAudienceToggle,
     },
   ]
@@ -714,7 +588,6 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
       gap: "6px",
       alignItems: "flex-end",
     }}>
-      {/* Narrative score badge */}
       {score !== null && (
         <div style={{
           padding: "6px 10px",
@@ -731,7 +604,6 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
         </div>
       )}
 
-      {/* Action buttons */}
       {railActions.map((action) => {
         const style = {
           display: "flex",
@@ -752,7 +624,7 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
           transition: "background 0.15s, border-color 0.15s",
           whiteSpace: "nowrap" as const,
         }
-        if (action.href) {
+        if ("href" in action && action.href) {
           return (
             <Link key={action.label} href={action.href} target="_blank" style={style}>
               {action.icon}{action.label}
@@ -779,59 +651,68 @@ export default function BriefPage() {
   const briefId = params.id as string
 
   const [brief, setBrief] = useState<Brief | null>(null)
-  const [rawBrief, setRawBrief] = useState<Record<string, unknown>>({})
-  const [evidenceIndex, setEvidenceIndex] = useState<EvidenceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeEvidence, setActiveEvidence] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      getBrief(briefId),
-      getBriefEvidenceIndex(briefId).catch(() => []),
-    ]).then(([data, index]) => {
-      setRawBrief(data)
-      setBrief(data as unknown as Brief)
-      setEvidenceIndex(index)
-      setLoading(false)
-    }).catch((e) => {
-      setError(e instanceof Error ? e.message : "Brief not found.")
-      setLoading(false)
-    })
+    getBrief(briefId)
+      .then((data) => {
+        setBrief(data as unknown as Brief)
+        setLoading(false)
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "Brief not found.")
+        setLoading(false)
+      })
   }, [briefId])
 
   const handleChip = useCallback((id: string) => setActiveEvidence(id), [])
 
   const handleSectionRegenerated = useCallback((updated: BriefSection) => {
-    setBrief((prev) => prev ? { ...prev, sections: prev.sections.map((s) => s.id === updated.id ? updated : s) } : prev)
+    setBrief((prev) => {
+      if (!prev) return prev
+      const updatedId = sectionId(updated)
+      return {
+        ...prev,
+        sections: prev.sections.map((s) => sectionId(s) === updatedId ? updated : s),
+      }
+    })
   }, [])
 
   const handleCopy = useCallback(() => {
     if (!brief) return
-    const lines: string[] = [`# ${brief.company_name} — ${brief.period}`, `\n> ${brief.thesis}`]
-    for (const s of brief.sections) {
-      lines.push(`\n## ${s.headline}`)
-      lines.push(s.content.replace(/\[E\d+\]/g, ""))
+    const meta = brief.metadata
+    const lines: string[] = [`# ${meta?.customer_name ?? ""} — ${meta?.period?.label ?? ""}`]
+    if (brief.thesis?.sentence) lines.push(`\n> ${brief.thesis.sentence}`)
+    if (brief.executive_summary?.length) {
+      lines.push("\n## Executive Summary")
+      for (const item of brief.executive_summary) lines.push(`- ${item.bullet}`)
     }
-    if (brief.recommendations.length > 0) {
+    for (const s of brief.sections ?? []) {
+      lines.push(`\n## ${s.headline}`)
+      lines.push(sectionContent(s).replace(/\[E\d+\]/g, ""))
+    }
+    if (brief.recommendations?.length) {
       lines.push("\n## Recommendations")
       for (const [i, r] of brief.recommendations.entries()) {
-        const rec = r as Record<string, string | undefined>
-        lines.push(`\n${i + 1}. **${rec.action ?? ""}**`)
-        if (rec.expected_impact) lines.push(`   ${rec.expected_impact}`)
+        lines.push(`\n${i + 1}. **${r.headline}**`)
+        if (r.expected_impact) lines.push(`   ${r.expected_impact}`)
       }
     }
+    if (brief.closing?.ask) lines.push(`\n---\n${brief.closing.ask}`)
     navigator.clipboard.writeText(lines.join("\n"))
   }, [brief])
 
   const handleAudienceToggle = useCallback(() => {
     if (!brief) return
-    const newAudience = brief.audience === "ciso" ? "csm" : "ciso"
-    const sessionId = (rawBrief.session_id as string) || brief.session_id
-    const emphasis = (rawBrief.emphasis as string) || "balanced"
-    const length = (rawBrief.length as string) || "standard"
+    const audience = brief.metadata?.audience ?? "ciso"
+    const newAudience = audience === "ciso" ? "csm" : "ciso"
+    const sessionId = brief._session_id ?? ""
+    const emphasis = brief._emphasis ?? "balanced"
+    const length = brief._length ?? "standard"
     router.push(`/generate?${new URLSearchParams({ session_id: sessionId, audience: newAudience, emphasis, length }).toString()}`)
-  }, [brief, rawBrief, router])
+  }, [brief, router])
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: "var(--bg-page)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -847,6 +728,19 @@ export default function BriefPage() {
       </div>
     </div>
   )
+
+  const meta = brief.metadata
+  const customerName = meta?.customer_name ?? "—"
+  const periodLabel = meta?.period?.label ?? "—"
+  const audience = meta?.audience ?? "ciso"
+  const thesis = brief.thesis?.sentence ?? ""
+  const execSummary = brief.executive_summary ?? []
+  const sections = brief.sections ?? []
+  const exhibits = brief.exhibits ?? []
+  const recommendations = brief.recommendations ?? []
+  const risks = brief.risks_open_items ?? []
+  const closingAsk = brief.closing?.ask ?? ""
+  const score = brief._critique?.narrative_score ?? null
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-page)" }}>
@@ -872,69 +766,93 @@ export default function BriefPage() {
             textTransform: "uppercase", padding: "4px 10px",
             background: "var(--accent)", color: "#fff", borderRadius: "2px",
           }}>
-            {brief.audience === "ciso" ? "CISO" : "CSM QBR"}
+            {audience === "ciso" ? "CISO BRIEF" : "CSM QBR"}
           </span>
           <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
-            {brief.period}
+            {periodLabel}
           </span>
         </div>
-        <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
-          {brief.sections.length} SECTIONS · {brief.recommendations.length} RECS
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          {score !== null && (
+            <span style={{ fontFamily: MONO, fontSize: "9px", color: score >= 80 ? "var(--success)" : "var(--warning)", letterSpacing: "0.1em" }}>
+              QUALITY {score}/100
+            </span>
+          )}
+          <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
+            {sections.length} SECTIONS
+          </span>
+        </div>
       </header>
 
-      {/* Paper document — white card on dark background */}
-      <div style={{ maxWidth: "860px", margin: "48px auto 80px", padding: "0 24px" }}>
+      {/* Paper document */}
+      <div style={{ maxWidth: "880px", margin: "48px auto 80px", padding: "0 24px" }}>
         <div style={{ background: P.bg, boxShadow: "0 4px 40px rgba(0,0,0,0.25)", borderRadius: "2px" }}>
-          <div style={{ padding: "80px 80px 72px" }}>
+          <div style={{ padding: "72px 80px 64px" }}>
 
             {/* Masthead */}
-            <div style={{ marginBottom: "64px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "40px" }}>
+            <div style={{ marginBottom: "56px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "36px" }}>
                 <div style={{ flex: 1, height: "1px", background: P.accent }} />
                 <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase", color: P.accent }}>
-                  INTELLIGENCE BRIEF · {brief.period}
+                  INTELLIGENCE BRIEF · {periodLabel}
                 </span>
                 <div style={{ flex: 1, height: "1px", background: P.accent }} />
               </div>
 
               <h1 style={{
                 fontFamily: SERIF,
-                fontSize: "clamp(40px, 5vw, 64px)", fontWeight: 700,
-                lineHeight: 1.02, letterSpacing: "-0.025em",
-                color: P.text, marginBottom: "36px",
+                fontSize: "clamp(38px, 5vw, 60px)", fontWeight: 700,
+                lineHeight: 1.04, letterSpacing: "-0.025em",
+                color: P.text, marginBottom: "12px",
               }}>
-                {brief.company_name}
+                {customerName}
               </h1>
+              <p style={{ fontFamily: MONO, fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: P.faint, marginBottom: "32px" }}>
+                {meta?.prepared_for ? `PREPARED FOR ${meta.prepared_for.toUpperCase()}` : ""}
+              </p>
 
-              {/* Thesis lede */}
-              <blockquote style={{
-                margin: 0,
-                borderLeft: `3px solid ${P.accent}`,
-                paddingLeft: "28px",
-              }}>
-                <p style={{
-                  fontFamily: SERIF,
-                  fontSize: "19px", lineHeight: 1.75, color: P.text,
-                  fontStyle: "italic", fontWeight: 400,
-                }}>
-                  {brief.thesis}
-                </p>
-              </blockquote>
+              {/* Thesis */}
+              {thesis && (
+                <blockquote style={{ margin: 0, borderLeft: `3px solid ${P.accent}`, paddingLeft: "28px" }}>
+                  <p style={{ fontFamily: SERIF, fontSize: "19px", lineHeight: 1.75, color: P.text, fontStyle: "italic", fontWeight: 400 }}>
+                    {parseContent(thesis, handleChip)}
+                  </p>
+                </blockquote>
+              )}
             </div>
 
-            {/* Divider */}
-            <div style={{ height: "1px", background: P.border, marginBottom: "64px" }} />
+            {/* Executive summary */}
+            {execSummary.length > 0 && (
+              <div style={{ marginBottom: "56px", padding: "28px 32px", background: P.surface, border: `1px solid ${P.border}`, borderRadius: "4px" }}>
+                <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: P.faint, marginBottom: "18px" }}>
+                  EXECUTIVE SUMMARY
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {execSummary.map((item, i) => (
+                    <div key={i} style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                      <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, color: P.accent, flexShrink: 0, marginTop: "5px", letterSpacing: "0.04em" }}>
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <p style={{ fontFamily: SERIF, fontSize: "15px", lineHeight: 1.65, color: P.text }}>
+                        {parseContent(item.bullet, handleChip)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ height: "1px", background: P.border, marginBottom: "56px" }} />
 
             {/* Sections */}
             <div style={{ display: "flex", flexDirection: "column", gap: "56px", marginBottom: "80px" }}>
-              {brief.sections.map((section, i) => (
+              {sections.map((section, i) => (
                 <SectionBlock
-                  key={section.id}
+                  key={sectionId(section) || i}
                   section={section}
                   index={i}
                   briefId={briefId}
-                  evidenceIndex={evidenceIndex}
+                  exhibits={exhibits}
                   onChip={handleChip}
                   onRegenerated={handleSectionRegenerated}
                 />
@@ -942,28 +860,53 @@ export default function BriefPage() {
             </div>
 
             {/* Recommendations */}
-            {brief.recommendations.length > 0 && (
+            {recommendations.length > 0 && (
               <div style={{ marginBottom: "72px" }}>
-                <div style={{ height: "1px", background: P.border, marginBottom: "40px" }} />
-                <div style={{ display: "flex", alignItems: "baseline", gap: "20px", marginBottom: "4px" }}>
-                  <div style={{ width: "64px", flexShrink: 0 }}>
-                    <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint }}>REC.</span>
-                  </div>
-                  <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint }}>
-                    RECOMMENDATIONS — {brief.recommendations.length} ACTIONS
-                  </p>
-                </div>
-                {brief.recommendations.map((rec, i) => (
-                  <RecommendationCard key={i} rec={rec as Record<string, unknown>} index={i} />
+                <div style={{ height: "1px", background: P.border, marginBottom: "36px" }} />
+                <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: P.faint, marginBottom: "4px" }}>
+                  RECOMMENDATIONS — {recommendations.length} ACTIONS
+                </p>
+                {recommendations.map((rec, i) => (
+                  <RecommendationCard key={rec.rec_id || i} rec={rec} index={i} />
                 ))}
               </div>
             )}
 
+            {/* Risks / open items */}
+            {risks.length > 0 && (
+              <div style={{ marginBottom: "56px" }}>
+                <div style={{ height: "1px", background: P.border, marginBottom: "28px" }} />
+                <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: P.faint, marginBottom: "12px" }}>
+                  OPEN ITEMS & RISKS
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {risks.map((risk) => {
+                    const statusColors: Record<string, string> = {
+                      trending_worse: P.danger,
+                      open: P.warning,
+                      monitoring: P.muted,
+                      resolved: P.success,
+                    }
+                    const statusColor = statusColors[risk.status] ?? P.muted
+                    return (
+                      <div key={risk.item_id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", background: P.surface, border: `1px solid ${P.border}`, borderRadius: "3px" }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: statusColor, flexShrink: 0 }} />
+                        <p style={{ fontFamily: MONO, fontSize: "10px", color: P.text, flex: 1 }}>{risk.label}</p>
+                        <span style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.1em", textTransform: "uppercase", color: statusColor, flexShrink: 0 }}>
+                          {risk.status.replace("_", " ")}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Closing ask */}
-            {(rawBrief.closing_ask as string) && (
+            {closingAsk && (
               <div style={{ marginBottom: "56px", padding: "24px 28px", background: P.surface, borderLeft: `3px solid ${P.accent}`, borderRadius: "0 4px 4px 0" }}>
                 <p style={{ fontFamily: MONO, fontSize: "8px", letterSpacing: "0.18em", textTransform: "uppercase", color: P.faint, marginBottom: "8px" }}>CLOSING ASK</p>
-                <p style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.7, color: P.text, fontWeight: 500 }}>{String(rawBrief.closing_ask)}</p>
+                <p style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.7, color: P.text, fontWeight: 500 }}>{closingAsk}</p>
               </div>
             )}
 

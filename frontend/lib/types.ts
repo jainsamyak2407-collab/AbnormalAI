@@ -19,24 +19,127 @@ export interface GenerateRequest {
   length?: Length
 }
 
-export interface BriefSection {
-  id: string
-  headline: string
-  content: string
-  exhibits: string[]
+// ---------------------------------------------------------------------------
+// Brief contract — mirrors backend models.py Phase 2 schema
+// ---------------------------------------------------------------------------
+
+export interface PeriodInfo {
+  label: string
+  start?: string
+  end?: string
+}
+
+export interface BriefMetadata {
+  customer_name: string
+  period: PeriodInfo
+  audience: Audience
+  emphasis: string
+  length: string
+  prepared_by: string
+  prepared_for: string
+  generated_at: string
+}
+
+export interface ThesisBlock {
+  sentence: string
   evidence_refs: string[]
+}
+
+export interface ExecutiveSummaryItem {
+  bullet: string
+  evidence_refs: string[]
+}
+
+export interface BriefSection {
+  section_id: string
+  /** legacy field — same value as section_id */
+  id?: string
+  order: number
+  headline: string
+  prose_inline: string
+  prose_print?: string
+  exhibit_refs: string[]
+  so_what?: string
+  evidence_refs?: string[]
+  /** legacy field — same value as prose_inline */
+  content?: string
+  /** legacy field — same value as exhibit_refs */
+  exhibits?: string[]
+}
+
+export type ExhibitType =
+  | "trend_line"
+  | "benchmark_bars"
+  | "department_bars"
+  | "vip_cards"
+  | "criteria_scorecard"
+
+export interface Exhibit {
+  exhibit_id: string
+  number: number
+  type: ExhibitType
+  title: string
+  caption: string
+  source_note: string
+  /** Shape depends on type — see exhibit_builder.py */
+  data: Record<string, unknown>
+  evidence_refs: string[]
+}
+
+export interface Recommendation {
+  rec_id: string
+  kind: string
+  headline: string
+  expected_impact: string
+  rationale: string
+  evidence_refs: string[]
+  risk_if_unaddressed: string
+}
+
+export interface RiskItem {
+  item_id: string
+  label: string
+  status: "open" | "monitoring" | "trending_worse" | "resolved"
+  evidence_refs: string[]
+}
+
+export interface Closing {
+  ask: string
+  audience_specific: boolean
+}
+
+export interface BriefEvidenceRecord {
+  evidence_id: string
+  metric_id: string
+  metric_label: string
+  metric_type: string
+  value: number | string | null
+  unit?: string | null
+  calculation_description: string
+  source_rows: Record<string, unknown>[]
+  source_files: string[]
+  additional_data: unknown
 }
 
 export interface Brief {
   brief_id: string
-  session_id: string
-  audience: Audience
-  period: string
-  company_name: string
-  thesis: string
+  metadata: BriefMetadata
+  thesis: ThesisBlock
+  executive_summary: ExecutiveSummaryItem[]
   sections: BriefSection[]
-  recommendations: Record<string, unknown>[]
-  risks: Record<string, unknown>[]
+  exhibits: Exhibit[]
+  recommendations: Recommendation[]
+  risks_open_items: RiskItem[]
+  closing: Closing
+  evidence_index: Record<string, BriefEvidenceRecord>
+  /** Pipeline internals stored for regeneration */
+  _session_id?: string
+  _observations?: unknown[]
+  _outline?: Record<string, unknown>
+  _critique?: { narrative_score: number; issues: unknown[] }
+  _audit?: { passed: boolean; issues: number }
+  _emphasis?: string
+  _length?: string
 }
 
 // ---------------------------------------------------------------------------

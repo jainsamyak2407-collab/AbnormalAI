@@ -1,23 +1,24 @@
 import type { Metadata } from "next"
-import { Inter, Source_Serif_4, IBM_Plex_Mono } from "next/font/google"
+import { IBM_Plex_Sans, IBM_Plex_Serif, IBM_Plex_Mono } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({
+const ibmSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
   display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
 })
 
-const sourceSerif = Source_Serif_4({
+const ibmSerif = IBM_Plex_Serif({
   subsets: ["latin"],
-  variable: "--font-source-serif",
+  variable: "--font-serif",
   display: "swap",
   weight: ["300", "400", "600", "700"],
 })
 
 const ibmMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-ibm-mono",
+  variable: "--font-mono",
   display: "swap",
   weight: ["400", "500", "600", "700"],
 })
@@ -34,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable} ${ibmMono.variable}`}>
+    <html lang="en" className={`${ibmSans.variable} ${ibmSerif.variable} ${ibmMono.variable}`}>
       <body className="min-h-screen antialiased">
         {children}
       </body>

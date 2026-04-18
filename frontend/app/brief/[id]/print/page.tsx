@@ -2,23 +2,30 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { getBrief, getBriefEvidenceIndex } from "@/lib/api"
-import type { Brief, EvidenceRecord } from "@/lib/types"
+import { getBrief } from "@/lib/api"
+import type { Brief, BriefSection, EvidenceRecord } from "@/lib/types"
 import "@/styles/print.css"
 
-const MONO = "'Courier New', Courier, monospace"
-const SERIF = "var(--font-source-serif), Georgia, serif"
+const MONO = "var(--font-mono)"
+const SERIF = "var(--font-serif)"
+
+function sectionId(s: BriefSection) {
+  return s.section_id || s.id || ""
+}
+
+function sectionContent(s: BriefSection) {
+  return s.prose_inline || s.content || ""
+}
 
 // ---------------------------------------------------------------------------
-// Build footnote map: assigns a sequential number to each unique evidence ref
-// in the order they first appear across all sections.
+// Build footnote map: sequential number per unique evidence ref in section order
 // ---------------------------------------------------------------------------
 
-function buildFootnoteMap(sections: Brief["sections"]): Map<string, number> {
+function buildFootnoteMap(sections: BriefSection[]): Map<string, number> {
   const map = new Map<string, number>()
   let counter = 0
   for (const section of sections) {
-    const matches = section.content.matchAll(/\[E(\d+)\]/g)
+    const matches = sectionContent(section).matchAll(/\[E(\d+)\]/g)
     for (const m of matches) {
       const key = `E${m[1]}`
       if (!map.has(key)) {
@@ -31,7 +38,7 @@ function buildFootnoteMap(sections: Brief["sections"]): Map<string, number> {
 }
 
 // ---------------------------------------------------------------------------
-// Render prose: replace [E{n}] with <sup>{footnote}</sup>
+// Render prose: replace [E{n}] with superscript footnote number
 // ---------------------------------------------------------------------------
 
 function PrintProse({ content, footnoteMap }: { content: string; footnoteMap: Map<string, number> }) {
@@ -156,18 +163,13 @@ export default function PrintPage() {
   const briefId = params.id as string
 
   const [brief, setBrief] = useState<Brief | null>(null)
-  const [evidenceRecords, setEvidenceRecords] = useState<EvidenceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([
-      getBrief(briefId),
-      getBriefEvidenceIndex(briefId).catch(() => [] as EvidenceRecord[]),
-    ])
-      .then(([briefData, evidenceData]) => {
-        setBrief(briefData as unknown as Brief)
-        setEvidenceRecords(evidenceData)
+    getBrief(briefId)
+      .then((data) => {
+        setBrief(data as unknown as Brief)
         setLoading(false)
       })
       .catch((e) => {
@@ -199,14 +201,37 @@ export default function PrintPage() {
     )
   }
 
-  const footnoteMap = buildFootnoteMap(brief.sections)
+  const meta = brief.metadata
+  const customerName = meta?.customer_name ?? "—"
+  const periodLabel = meta?.period?.label ?? "—"
+  const audience = meta?.audience ?? "ciso"
+  const thesis = brief.thesis?.sentence ?? ""
+  const sections = brief.sections ?? []
+  const recommendations = brief.recommendations ?? []
 
-  // Build ordered list of evidence refs for the appendix (in footnote order)
+  const footnoteMap = buildFootnoteMap(sections)
+
+  // Build ordered list of evidence refs for appendix (in footnote order)
   const orderedRefs = Array.from(footnoteMap.entries())
     .sort((a, b) => a[1] - b[1])
     .map(([key]) => key)
 
-  const evidenceByRef = new Map(evidenceRecords.map((r) => [r.evidence_id, r]))
+  // Build evidence lookup from embedded evidence_index
+  const evidenceIndex = brief.evidence_index ?? {}
+  const evidenceByRef = new Map<string, EvidenceRecord>(
+    Object.entries(evidenceIndex).map(([id, rec]) => [
+      id,
+      {
+        evidence_id: id,
+        metric_label: rec.metric_label,
+        metric_type: rec.metric_type as EvidenceRecord["metric_type"],
+        calculation_description: rec.calculation_description,
+        source_row_count: rec.source_rows?.length ?? 0,
+        value: rec.value,
+        unit: rec.unit,
+      } satisfies EvidenceRecord,
+    ])
+  )
 
   return (
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "48px 0", fontFamily: SERIF, color: "#1A1A1A", background: "#FFFFFF" }}>
@@ -231,29 +256,48 @@ export default function PrintPage() {
       <div style={{ marginBottom: "40px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
           <span style={{ fontFamily: MONO, fontSize: "9px", fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", padding: "3px 10px", background: "#1A1A1A", color: "#FAFAF7" }}>
-            {brief.audience === "ciso" ? "CISO" : "CSM QBR"}
+            {audience === "ciso" ? "CISO" : "CSM QBR"}
           </span>
-          <span style={{ fontFamily: MONO, fontSize: "11px", color: "#9CA3AF" }}>{brief.period}</span>
+          <span style={{ fontFamily: MONO, fontSize: "11px", color: "#9CA3AF" }}>{periodLabel}</span>
           <span style={{ fontFamily: MONO, fontSize: "11px", color: "#9CA3AF", marginLeft: "auto" }}>Abnormal Brief Studio</span>
         </div>
 
         <h1 style={{ fontFamily: SERIF, fontSize: "28px", fontWeight: 600, lineHeight: 1.2, marginBottom: "20px", color: "#1A1A1A" }}>
-          {brief.company_name}
+          {customerName}
         </h1>
 
-        <div style={{ borderLeft: "2px solid #1A1A1A", paddingLeft: "14px" }}>
-          <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.7, color: "#374151", margin: 0, fontStyle: "italic" }}>
-            {brief.thesis}
-          </p>
-        </div>
+        {thesis && (
+          <div style={{ borderLeft: "2px solid #1A1A1A", paddingLeft: "14px" }}>
+            <p style={{ fontFamily: SERIF, fontSize: "14px", lineHeight: 1.7, color: "#374151", margin: 0, fontStyle: "italic" }}>
+              {thesis}
+            </p>
+          </div>
+        )}
       </div>
 
       <hr style={{ border: "none", borderTop: "1px solid #E5E4DF", margin: "0 0 36px 0" }} />
 
+      {/* Executive summary */}
+      {(brief.executive_summary ?? []).length > 0 && (
+        <div style={{ marginBottom: "32px", padding: "16px 20px", background: "#F5F4EF", border: "1px solid #E5E4DF" }}>
+          <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "12px" }}>
+            EXECUTIVE SUMMARY
+          </p>
+          {brief.executive_summary.map((item, i) => (
+            <div key={i} style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
+              <span style={{ fontFamily: MONO, fontSize: "9px", color: "#4C566A", flexShrink: 0 }}>{i + 1}.</span>
+              <p style={{ fontFamily: SERIF, fontSize: "12px", lineHeight: 1.6, color: "#1A1A1A", margin: 0 }}>
+                <PrintProse content={item.bullet} footnoteMap={footnoteMap} />
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Sections */}
       <div style={{ marginBottom: "40px" }}>
-        {brief.sections.map((section, i) => (
-          <div key={section.id} className="avoid-break" style={{ marginBottom: "32px" }}>
+        {sections.map((section, i) => (
+          <div key={sectionId(section) || i} className="avoid-break" style={{ marginBottom: "32px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
               <span style={{ fontFamily: MONO, fontSize: "11px", color: "#9CA3AF", flexShrink: 0, marginTop: "3px" }}>
                 {String(i + 1).padStart(2, "0")}
@@ -263,7 +307,7 @@ export default function PrintPage() {
                   {section.headline}
                 </h2>
                 <p style={{ fontSize: "11px", lineHeight: 1.75, color: "#374151", margin: 0 }}>
-                  <PrintProse content={section.content} footnoteMap={footnoteMap} />
+                  <PrintProse content={sectionContent(section)} footnoteMap={footnoteMap} />
                 </p>
               </div>
             </div>
@@ -272,33 +316,42 @@ export default function PrintPage() {
       </div>
 
       {/* Recommendations */}
-      {brief.recommendations.length > 0 && (
+      {recommendations.length > 0 && (
         <>
           <hr style={{ border: "none", borderTop: "1px solid #E5E4DF", margin: "0 0 28px 0" }} />
           <div style={{ marginBottom: "40px" }}>
             <p style={{ fontFamily: MONO, fontSize: "9px", fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "16px" }}>
               Recommendations
             </p>
-            {brief.recommendations.map((rec, i) => {
-              const r = rec as Record<string, string | undefined>
-              return (
-                <div key={i} className="avoid-break" data-rec-card style={{ border: "1px solid #E5E4DF", padding: "12px 14px", marginBottom: "8px" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                    <span style={{ fontFamily: SERIF, fontSize: "14px", color: "#1A1A1A", flexShrink: 0 }}>{i + 1}</span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "#1A1A1A" }}>{r.action ?? r.title ?? ""}</p>
-                      {r.expected_impact && <p style={{ fontSize: "10px", color: "#4B5563", margin: 0 }}>{r.expected_impact}</p>}
-                      {r.rationale_chain && <p style={{ fontSize: "10px", color: "#6B7280", marginTop: "4px" }}>{r.rationale_chain}</p>}
-                    </div>
-                    {(r.ask_type || r.commercial_angle) && (
-                      <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", background: "#F0EFE9", color: "#4C566A", flexShrink: 0 }}>
-                        {r.ask_type ?? r.commercial_angle}
-                      </span>
-                    )}
+            {recommendations.map((rec, i) => (
+              <div key={rec.rec_id || i} className="avoid-break" style={{ border: "1px solid #E5E4DF", padding: "12px 14px", marginBottom: "8px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                  <span style={{ fontFamily: SERIF, fontSize: "14px", color: "#1A1A1A", flexShrink: 0 }}>{i + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: "11px", fontWeight: 600, marginBottom: "4px", color: "#1A1A1A" }}>{rec.headline}</p>
+                    {rec.expected_impact && <p style={{ fontSize: "10px", color: "#4B5563", margin: 0 }}>{rec.expected_impact}</p>}
+                    {rec.rationale && <p style={{ fontSize: "10px", color: "#6B7280", marginTop: "4px", fontStyle: "italic" }}>{rec.rationale}</p>}
+                    {rec.risk_if_unaddressed && <p style={{ fontSize: "10px", color: "#C0392B", marginTop: "4px" }}>Risk: {rec.risk_if_unaddressed}</p>}
                   </div>
+                  {rec.kind && (
+                    <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", background: "#F0EFE9", color: "#4C566A", flexShrink: 0 }}>
+                      {rec.kind}
+                    </span>
+                  )}
                 </div>
-              )
-            })}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Closing ask */}
+      {brief.closing?.ask && (
+        <>
+          <hr style={{ border: "none", borderTop: "1px solid #E5E4DF", margin: "0 0 20px 0" }} />
+          <div style={{ borderLeft: "2px solid #4C566A", paddingLeft: "14px", marginBottom: "32px" }}>
+            <p style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#9CA3AF", marginBottom: "6px" }}>CLOSING ASK</p>
+            <p style={{ fontFamily: SERIF, fontSize: "13px", lineHeight: 1.7, color: "#1A1A1A", margin: 0 }}>{brief.closing.ask}</p>
           </div>
         </>
       )}
@@ -310,11 +363,11 @@ export default function PrintPage() {
           Generated by Abnormal Brief Studio · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </p>
         <p style={{ fontFamily: MONO, fontSize: "9px", color: "#9CA3AF" }}>
-          {brief.sections.length} sections · {brief.recommendations.length} recommendations
+          {sections.length} sections · {recommendations.length} recommendations
         </p>
       </div>
 
-      {/* Evidence & Sources appendix — own page */}
+      {/* Evidence & Sources appendix */}
       {orderedRefs.length > 0 && (
         <div className="page-break-before" style={{ paddingTop: "8px" }}>
           <div style={{ marginBottom: "24pt" }}>
