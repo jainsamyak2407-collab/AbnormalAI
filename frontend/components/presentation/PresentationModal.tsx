@@ -441,7 +441,7 @@ function ProgressView({ completed, current, error }: {
 type ModalState = "idle" | "generating" | "ready"
 
 interface ReviseState {
-  [slideNumber: number]: { text: string; inProgress: boolean }
+  [slideNumber: number]: { text: string; inProgress: boolean; error?: string }
 }
 
 export function PresentationModal({ briefId, onClose }: { briefId: string; onClose: () => void }) {
@@ -495,6 +495,7 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
             if (ev.type === "error")          { setError(ev.message); setState("idle"); return }
             if (ev.type === "done") {
               const data = await fetch(`/api/presentation/${ev.presentation_id}`)
+              if (!data.ok) { setError("Failed to load slides. Try again."); setState("idle"); return }
               const pres = await data.json()
               setSlides(pres.slides ?? [])
               setPresId(ev.presentation_id)
@@ -525,8 +526,8 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
       const updated: SlideContent = await res.json()
       setSlides(prev => prev.map(s => s.slide_number === slideNumber ? updated : s))
       setRevise(p => { const n = { ...p }; delete n[slideNumber]; return n })
-    } catch {
-      setRevise(p => ({ ...p, [slideNumber]: { ...p[slideNumber], inProgress: false } }))
+    } catch (e) {
+      setRevise(p => ({ ...p, [slideNumber]: { ...p[slideNumber], inProgress: false, error: e instanceof Error ? e.message : "Revision failed. Try again." } }))
     }
   }
 
@@ -702,6 +703,9 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
                               resize: "none", outline: "none", marginBottom: 8, display: "block",
                             }}
                           />
+                          {rs.error && (
+                            <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--danger)", margin: "4px 0 6px" }}>{rs.error}</p>
+                          )}
                           <div style={{ display: "flex", gap: 8 }}>
                             <button
                               onClick={() => handleReviseApply(slide.slide_number)}

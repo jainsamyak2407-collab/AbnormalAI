@@ -397,8 +397,17 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 
   const handleRegenerate = async () => {
     setRegenerating(true); setError(null)
-    try { onRegenerated(await regenerateSection(briefId, section.id, steering || undefined)); onClose() }
-    catch (e) { setError(e instanceof Error ? e.message : "Regeneration failed."); setRegenerating(false) }
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 120_000)
+      const result = await regenerateSection(briefId, section.id, steering || undefined)
+      clearTimeout(timeout)
+      onRegenerated(result)
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error && e.name === "AbortError" ? "Request timed out. Try again." : e instanceof Error ? e.message : "Regeneration failed.")
+      setRegenerating(false)
+    }
   }
 
   return (
