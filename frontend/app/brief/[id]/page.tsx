@@ -11,6 +11,7 @@ import {
 } from "recharts"
 import { getBrief, getEvidence, getSectionPrompt, regenerateSection, getBriefEvidenceIndex } from "@/lib/api"
 import type { Brief, BriefSection, EvidenceRecord } from "@/lib/types"
+import { PresentationModal } from "@/components/presentation/PresentationModal"
 
 const MONO = "var(--font-mono)"
 const SERIF = "var(--font-serif)"
@@ -657,8 +658,8 @@ function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; inde
 // Action rail (fixed right sidebar)
 // ---------------------------------------------------------------------------
 
-function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
-  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void
+function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
+  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void; onDeck: () => void
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -692,6 +693,17 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
       ),
       label: "PRINT PDF",
       href: `/brief/${briefId}/print`,
+    },
+    {
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <rect x="1" y="3" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M4 3V2h6v1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          <path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+        </svg>
+      ),
+      label: "DECK",
+      onClick: onDeck,
     },
     {
       icon: (
@@ -786,6 +798,7 @@ export default function BriefPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeEvidence, setActiveEvidence] = useState<string | null>(null)
+  const [presentationOpen, setPresentationOpen] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -984,10 +997,15 @@ export default function BriefPage() {
       </div>
 
       {/* Fixed action rail */}
-      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} />
+      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} onDeck={() => setPresentationOpen(true)} />
 
       {/* Evidence drawer */}
       <EvidenceDrawer evidenceId={activeEvidence} briefId={briefId} onClose={() => setActiveEvidence(null)} />
+
+      {/* Presentation modal */}
+      {presentationOpen && (
+        <PresentationModal briefId={briefId} onClose={() => setPresentationOpen(false)} />
+      )}
     </div>
   )
 }
