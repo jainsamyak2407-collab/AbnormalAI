@@ -188,11 +188,11 @@ async def run(
     raw = response.content[0].text
     plan = extract_json(raw)
 
-    if not isinstance(plan, dict):
-        logger.warning("Presentation Composer returned non-dict; building minimal fallback plan.")
+    if not isinstance(plan, dict) or not plan.get("slide_plan"):
+        logger.warning("Composer returned unusable plan; using fallback.")
         plan = _fallback_plan(brief, exhibits)
-
-    plan.setdefault("slide_plan", [])
+    else:
+        plan.setdefault("slide_plan", [])
     plan.setdefault("narrative_through_line", "")
     plan.setdefault("user_context_applied", "No additional context provided.")
 
