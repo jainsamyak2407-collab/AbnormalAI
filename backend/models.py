@@ -93,3 +93,55 @@ class EvidenceResponse(BaseModel):
 
 # Keep legacy name so existing imports don't break
 EvidenceRecord = EvidenceResponse
+
+
+# ---------------------------------------------------------------------------
+# Presentation
+# ---------------------------------------------------------------------------
+
+
+class SlideCallout(BaseModel):
+    number: str
+    label: str
+    context: str
+    color: Literal["ink", "accent", "success", "warning"] = "ink"
+
+
+class SlideChartSpec(BaseModel):
+    type: Literal["trend_line", "benchmark_bars", "department_bars", "criteria_scorecard"]
+    title: str
+    caption: str
+    source_note: str
+    data: dict
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class SlideRecommendation(BaseModel):
+    kind: Literal["POLICY", "BUDGET", "HEADCOUNT", "EXPANSION", "TRAINING", "RENEWAL"]
+    headline: str
+    rationale: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class SlideContent(BaseModel):
+    slide_number: int
+    slide_type: Literal["title", "thesis", "what_happened", "what_needs_attention", "the_ask"]
+    headline: Optional[str] = None
+    subtitle: Optional[str] = None
+    thesis_sentence: Optional[str] = None
+    thesis_tagline: Optional[str] = None
+    chart: Optional[SlideChartSpec] = None
+    callouts: Optional[list[SlideCallout]] = None
+    recommendations: Optional[list[SlideRecommendation]] = None
+    closing_ask: Optional[str] = None
+    footer: str
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class Presentation(BaseModel):
+    presentation_id: str
+    brief_id: str
+    audience: Literal["ciso", "csm"]
+    user_context: Optional[str] = None
+    slides: list[SlideContent]
+    generated_at: str  # ISO datetime string
