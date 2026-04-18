@@ -655,7 +655,7 @@ function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; inde
 }
 
 // ---------------------------------------------------------------------------
-// Action rail (fixed right sidebar)
+// Action rail (fixed bottom-right panel)
 // ---------------------------------------------------------------------------
 
 function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
@@ -669,116 +669,128 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const rawBrief = brief as unknown as Record<string, unknown>
-  const critique = rawBrief.critique as Record<string, unknown> | undefined
-  const score = typeof critique?.narrative_score === "number" ? critique.narrative_score : null
-
-  const railActions = [
-    {
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M9.5 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5L9.5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-      label: copied ? "COPIED" : "COPY MD",
-      onClick: handleCopy,
-      active: copied,
-    },
-    {
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      ),
-      label: "PRINT PDF",
-      href: `/brief/${briefId}/print`,
-    },
-    {
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <rect x="1" y="3" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M4 3V2h6v1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-          <path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-        </svg>
-      ),
-      label: "DECK",
-      onClick: onDeck,
-    },
-    {
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1l2 4h4l-3.5 2.5 1.5 4L7 9l-4 2.5 1.5-4L1 5h4l2-4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-      label: brief.audience === "ciso" ? "→ CSM" : "→ CISO",
-      onClick: onAudienceToggle,
-    },
-  ]
+  const otherAudience = brief.audience === "ciso" ? "CSM" : "CISO"
 
   return (
     <div style={{
       position: "fixed",
-      right: "20px",
-      top: "50%",
-      transform: "translateY(-50%)",
+      bottom: "28px",
+      right: "28px",
       zIndex: 20,
       display: "flex",
       flexDirection: "column",
-      gap: "6px",
-      alignItems: "flex-end",
+      gap: "8px",
+      alignItems: "stretch",
+      width: "200px",
+      background: P.bg,
+      border: `1px solid ${P.border}`,
+      borderRadius: "8px",
+      padding: "14px",
+      boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
     }}>
-      {/* Narrative score badge */}
-      {score !== null && (
-        <div style={{
-          padding: "6px 10px",
-          background: "var(--bg-surface)",
-          border: `1px solid ${score >= 80 ? "rgba(74,222,128,0.3)" : score >= 60 ? "rgba(251,191,36,0.3)" : "rgba(239,68,68,0.3)"}`,
-          borderRadius: "4px",
-          marginBottom: "4px",
-          textAlign: "center",
-        }}>
-          <p style={{ fontFamily: MONO, fontSize: "16px", fontWeight: 700, color: score >= 80 ? "var(--success)" : score >= 60 ? "var(--warning)" : "var(--danger)", lineHeight: 1, marginBottom: "2px" }}>
-            {score}
-          </p>
-          <p style={{ fontFamily: MONO, fontSize: "7px", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-tertiary)" }}>QUALITY</p>
-        </div>
-      )}
+      {/* Section label */}
+      <p style={{ fontFamily: MONO, fontSize: "7px", letterSpacing: "0.2em", textTransform: "uppercase", color: P.faint, marginBottom: "2px" }}>
+        ACTIONS
+      </p>
 
-      {/* Action buttons */}
-      {railActions.map((action) => {
-        const style = {
-          display: "flex",
-          alignItems: "center",
-          gap: "7px",
-          padding: "8px 12px",
-          background: action.active ? "var(--accent)" : "var(--bg-surface)",
-          border: `1px solid ${action.active ? "var(--accent)" : "var(--border-strong)"}`,
-          borderRadius: "4px",
+      {/* Primary: Generate Deck */}
+      <button onClick={onDeck} style={{
+        display: "flex", alignItems: "center", gap: "10px",
+        padding: "11px 14px",
+        background: P.accent, color: "#fff",
+        border: "none", borderRadius: "5px",
+        cursor: "pointer",
+        fontFamily: MONO, fontSize: "10px", fontWeight: 700,
+        letterSpacing: "0.1em", textTransform: "uppercase",
+        width: "100%", textAlign: "left",
+      }}>
+        <svg width="15" height="15" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+          <rect x="1" y="3" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M4 3V2h6v1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+        Generate Deck
+      </button>
+
+      {/* Divider */}
+      <div style={{ height: "1px", background: P.border, margin: "2px 0" }} />
+
+      {/* Secondary actions */}
+      {[
+        {
+          icon: (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          ),
+          label: "Export PDF",
+          href: `/brief/${briefId}/print`,
+        },
+        {
+          icon: (
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9.5 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5L9.5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ),
+          label: copied ? "Copied!" : "Copy Markdown",
+          onClick: handleCopy,
+          active: copied,
+        },
+      ].map((action) => {
+        const btnStyle = {
+          display: "flex", alignItems: "center", gap: "9px",
+          padding: "9px 12px",
+          background: action.active ? `${P.accent}18` : P.surface,
+          border: `1px solid ${action.active ? P.accent : P.border}`,
+          borderRadius: "5px",
           cursor: "pointer" as const,
-          color: action.active ? "#fff" : "var(--text-secondary)",
-          fontFamily: MONO,
-          fontSize: "8px",
-          fontWeight: 700,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase" as const,
+          color: action.active ? P.accent : P.muted,
+          fontFamily: MONO, fontSize: "9px", fontWeight: 600,
+          letterSpacing: "0.06em",
           textDecoration: "none",
-          transition: "background 0.15s, border-color 0.15s",
-          whiteSpace: "nowrap" as const,
+          width: "100%", textAlign: "left" as const,
+          transition: "background 0.15s",
         }
-        if (action.href) {
+        if ("href" in action && action.href) {
           return (
-            <Link key={action.label} href={action.href} target="_blank" style={style}>
+            <Link key={action.label} href={action.href} target="_blank" style={btnStyle}>
               {action.icon}{action.label}
             </Link>
           )
         }
         return (
-          <button key={action.label} onClick={action.onClick} style={style}>
+          <button key={action.label} onClick={action.onClick} style={btnStyle}>
             {action.icon}{action.label}
           </button>
         )
       })}
+
+      {/* Divider */}
+      <div style={{ height: "1px", background: P.border, margin: "2px 0" }} />
+
+      {/* Audience switcher */}
+      <button onClick={onAudienceToggle} style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "9px 12px",
+        background: P.surface,
+        border: `1px solid ${P.border}`,
+        borderRadius: "5px",
+        cursor: "pointer",
+        width: "100%",
+      }}>
+        <span style={{ fontFamily: MONO, fontSize: "9px", color: P.muted, letterSpacing: "0.06em" }}>
+          Switch to
+        </span>
+        <span style={{
+          fontFamily: MONO, fontSize: "8px", fontWeight: 700,
+          letterSpacing: "0.14em", textTransform: "uppercase",
+          padding: "3px 8px", borderRadius: "3px",
+          background: P.accent, color: "#fff",
+        }}>
+          {otherAudience}
+        </span>
+      </button>
     </div>
   )
 }
