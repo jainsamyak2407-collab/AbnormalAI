@@ -2,7 +2,8 @@
 Stage 2: Narrative Architect
 Model: Claude Opus 4.6
 Input: observations + audience profile + emphasis + length
-Output: brief outline dict (thesis, pillars, closing ask)
+Output: brief outline dict (thesis with evidence_refs, executive_summary, pillars,
+        exhibits_plan, closing_ask)
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import logging
 
 from anthropic import AsyncAnthropic
 
-from ai.client import SONNET_MODEL
+from ai.client import OPUS_MODEL
 from ai.prompt_utils import load_prompt, fill_template, extract_json
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,8 @@ async def run(
 ) -> dict:
     """
     Run Stage 2: Narrative Architect.
-    Returns the brief outline dict with thesis, pillars, closing_ask.
+    Returns the brief outline with thesis, executive_summary, pillars,
+    exhibits_plan, and closing_ask.
     """
     system_prompt, user_template = load_prompt("architect.md")
 
@@ -44,8 +46,8 @@ async def run(
     })
 
     response = await client.messages.create(
-        model=SONNET_MODEL,
-        max_tokens=2000,
+        model=OPUS_MODEL,
+        max_tokens=2500,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )
@@ -57,10 +59,26 @@ async def run(
         logger.warning("Stage 2 returned non-dict; using empty outline.")
         outline = {}
 
+    # Ensure required keys exist with safe defaults
     outline.setdefault("thesis", f"Abnormal protected {company_name} in {period}.")
+    outline.setdefault("thesis_evidence_refs", [])
+    outline.setdefault("executive_summary", [])
     outline.setdefault("pillars", [])
+    outline.setdefault("exhibits_plan", [])
     outline.setdefault("closing_ask", "")
     outline.setdefault("demoted_observations", [])
 
-    logger.info("Stage 2 produced outline with %d pillars.", len(outline["pillars"]))
+    # Normalise executive_summary to 3 items
+    if len(outline["executive_summary"]) != 3:
+        logger.warning(
+            "Stage 2 produced %d exec summary bullets; expected 3.",
+            len(outline["executive_summary"]),
+        )
+
+    logger.info(
+        "Stage 2: %d pillars, %d exec summary bullets, %d exhibits planned.",
+        len(outline["pillars"]),
+        len(outline["executive_summary"]),
+        len(outline["exhibits_plan"]),
+    )
     return outline

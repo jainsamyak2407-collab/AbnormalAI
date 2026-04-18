@@ -1,5 +1,5 @@
 """
-AI Orchestrator: wires all 5 stages, streams SSE progress, builds final brief.
+AI Orchestrator: wires all 6 stages, streams SSE progress, builds final Brief.
 Called by api/generate.py.
 """
 
@@ -7,13 +7,20 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator
 
 from ai import stage1_interpreter, stage2_architect, stage3_writer, stage4_recommender, stage5_auditor, stage6_critic
 from ai.client import get_async_client
+from analytics.anomalies import Anomaly
 from analytics.evidence_index import EvidenceIndex
+from analytics.exhibit_builder import build_exhibits
 from analytics.metrics import MetricsBundle
+from models import (
+    Brief, BriefEvidenceRecord, BriefMetadata, Closing, ExecutiveSummaryItem,
+    PeriodInfo, RiskItem, Section, ThesisBlock,
+)
 from models import GenerateRequest
 
 logger = logging.getLogger(__name__)
@@ -39,14 +46,76 @@ def _sse(event: dict) -> str:
     return f"data: {json.dumps(event)}\n\n"
 
 
+def _build_evidence_index(evidence: EvidenceIndex) -> dict[str, dict]:
+    """Serialize the EvidenceIndex into the Brief's embedded evidence_index."""
+    result: dict[str, dict] = {}
+    for eid, rec in evidence.all().items():
+        result[eid] = {
+            "evidence_id": rec.evidence_id,
+            "metric_id": rec.metric_id,
+            "metric_label": rec.metric_name,
+            "metric_type": rec.metric_type,
+            "value": rec.value,
+            "unit": getattr(rec, "unit", None),
+            "calculation_description": rec.calculation,
+            "source_rows": rec.source_rows[:50] if rec.source_rows else [],
+            "source_files": getattr(rec, "source_files", []),
+            "additional_data": None,
+        }
+    return result
+
+
+def _build_risks(anomalies: list, evidence: EvidenceIndex) -> list[dict]:
+    """Convert anomalies to RiskItem dicts for the Brief schema."""
+    risks = []
+    for i, anomaly in enumerate(anomalies):
+        if isinstance(anomaly, Anomaly):
+            status_map = {
+                "critical": "trending_worse",
+                "high": "open",
+                "medium": "monitoring",
+            }
+            risks.append({
+                "item_id": getattr(anomaly, "anomaly_id", f"risk_{i+1:02d}"),
+                "label": getattr(anomaly, "title", anomaly.rule if hasattr(anomaly, "rule") else "Unknown"),
+                "status": status_map.get(getattr(anomaly, "severity", "medium"), "open"),
+                "evidence_refs": getattr(anomaly, "evidence_ids", []),
+            })
+        elif isinstance(anomaly, dict):
+            risks.append({
+                "item_id": anomaly.get("anomaly_id", f"risk_{i+1:02d}"),
+                "label": anomaly.get("title", anomaly.get("rule", "Unknown")),
+                "status": anomaly.get("status", "open"),
+                "evidence_refs": anomaly.get("evidence_ids", []),
+            })
+    return risks
+
+
+def _parse_period(period_str: str) -> PeriodInfo:
+    """Parse a period string like 'Q1 2026' into a PeriodInfo."""
+    # Try common formats
+    import re
+    m = re.match(r"Q(\d)\s+(\d{4})", period_str)
+    if m:
+        q, yr = int(m.group(1)), int(m.group(2))
+        starts = {1: "01-01", 2: "04-01", 3: "07-01", 4: "10-01"}
+        ends = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}
+        return PeriodInfo(
+            label=period_str,
+            start=f"{yr}-{starts[q]}",
+            end=f"{yr}-{ends[q]}",
+        )
+    return PeriodInfo(label=period_str)
+
+
 async def run_pipeline(
     brief_id: str,
     request: GenerateRequest,
     session: dict,
 ) -> AsyncGenerator[str, None]:
     """
-    Async generator that runs the 5-stage AI pipeline and yields SSE event strings.
-    Final event: {"type": "done", "brief_id": "..."}
+    Async generator that runs the 6-stage AI pipeline and yields SSE event strings.
+    Final events: {"type": "done", "brief_id": "..."} then {"type": "_brief_payload", "brief": {...}}
     """
     metrics: MetricsBundle = session["metrics"]
     evidence: EvidenceIndex = session["evidence"]
@@ -54,6 +123,7 @@ async def run_pipeline(
     anomalies: list = session.get("anomalies", [])
     trends = session.get("trends")
     tenant_drift = session.get("tenant_drift")
+    dfs: dict = session.get("dfs", {})
 
     audience_profile = _load_profile(request.audience)
     client = get_async_client()
@@ -147,6 +217,24 @@ async def run_pipeline(
     yield _sse({"type": "stage_complete", "stage": 4, "stage_name": STAGE_NAMES[3], "total_stages": 6})
 
     # -----------------------------------------------------------------------
+    # Build exhibit objects (analytics, not AI)
+    # -----------------------------------------------------------------------
+    exhibits = build_exhibits(outline.get("exhibits_plan", []), metrics)
+
+    # Build thesis and executive_summary from outline
+    thesis_raw = outline.get("thesis", f"Abnormal protected {metrics.company_name} in {metrics.period}.")
+    thesis_evidence_refs = outline.get("thesis_evidence_refs", [])
+    thesis = {"sentence": thesis_raw, "evidence_refs": thesis_evidence_refs}
+
+    exec_summary_raw = outline.get("executive_summary", [])
+    executive_summary = [
+        {"bullet": item.get("bullet", ""), "evidence_refs": item.get("evidence_refs", [])}
+        for item in exec_summary_raw
+    ]
+
+    closing_ask = outline.get("closing_ask", "")
+
+    # -----------------------------------------------------------------------
     # Stage 5: Evidence Auditor
     # -----------------------------------------------------------------------
     yield _sse({"type": "stage_start", "stage": 5, "stage_name": STAGE_NAMES[4], "total_stages": 6})
@@ -157,6 +245,10 @@ async def run_pipeline(
             period=metrics.period,
             company_name=metrics.company_name,
             client=client,
+            thesis=thesis,
+            executive_summary=executive_summary,
+            recommendations=recommendations,
+            closing_ask=closing_ask,
         )
     except Exception as e:
         logger.error("Stage 5 failed: %s", e)
@@ -166,7 +258,6 @@ async def run_pipeline(
     regen_ids = set(audit.get("sections_to_regenerate", []))
     if regen_ids:
         logger.info("Regenerating sections: %s", regen_ids)
-        # Build the outline just for failed sections
         failed_pillars = [
             p for p in outline.get("pillars", [])
             if p.get("pillar_id", "").lower().replace("-", "_") in regen_ids
@@ -185,16 +276,15 @@ async def run_pipeline(
                     company_name=metrics.company_name,
                     client=client,
                 )
-                # Replace failed sections with rewritten versions
-                rewritten_by_id = {s["id"]: s for s in rewritten}
-                sections = [rewritten_by_id.get(s["id"], s) for s in sections]
+                rewritten_by_id = {s["section_id"]: s for s in rewritten}
+                sections = [rewritten_by_id.get(s["section_id"], s) for s in sections]
             except Exception as e:
                 logger.error("Section regeneration failed: %s", e)
 
     yield _sse({"type": "stage_complete", "stage": 5, "stage_name": STAGE_NAMES[4], "total_stages": 6})
 
     # -----------------------------------------------------------------------
-    # Stage 6: Narrative Critic (non-fatal — one regen pass on blocking issues)
+    # Stage 6: Narrative Critic (non-fatal)
     # -----------------------------------------------------------------------
     yield _sse({"type": "stage_start", "stage": 6, "stage_name": STAGE_NAMES[5], "total_stages": 6})
     try:
@@ -208,22 +298,19 @@ async def run_pipeline(
         )
     except Exception as e:
         logger.error("Stage 6 failed (non-fatal): %s", e)
-        critique = {"narrative_score": 75, "issues": [], "sections_to_regenerate": [], "thesis_honored": True, "arc_coherent": True}
+        critique = {"narrative_score": 75, "issues": [], "sections_to_regenerate": []}
 
-    # Regenerate sections with blocking narrative issues (one pass, non-overlapping with Stage 5 regen)
     critic_regen_ids = set(critique.get("sections_to_regenerate", []))
     if critic_regen_ids:
-        logger.info("Stage 6 requesting regeneration: %s", critic_regen_ids)
         critic_failed_pillars = [
             p for p in outline.get("pillars", [])
             if p.get("pillar_id", "").lower().replace("-", "_") in critic_regen_ids
             or p.get("pillar_id", "") in critic_regen_ids
         ]
         if critic_failed_pillars:
-            critic_regen_outline = {**outline, "pillars": critic_failed_pillars}
             try:
                 critic_rewritten = await stage3_writer.run(
-                    outline=critic_regen_outline,
+                    outline={**outline, "pillars": critic_failed_pillars},
                     observations=observations,
                     evidence=evidence,
                     audience=request.audience,
@@ -232,50 +319,81 @@ async def run_pipeline(
                     company_name=metrics.company_name,
                     client=client,
                 )
-                rewritten_by_id = {s["id"]: s for s in critic_rewritten}
-                sections = [rewritten_by_id.get(s["id"], s) for s in sections]
+                rewritten_by_id = {s["section_id"]: s for s in critic_rewritten}
+                sections = [rewritten_by_id.get(s["section_id"], s) for s in sections]
             except Exception as e:
                 logger.error("Stage 6 section regeneration failed: %s", e)
 
     yield _sse({"type": "stage_complete", "stage": 6, "stage_name": STAGE_NAMES[5], "total_stages": 6})
 
     # -----------------------------------------------------------------------
-    # Assemble final brief
+    # Assemble full Brief conforming to the Part 2 contract
     # -----------------------------------------------------------------------
-    success_summary = {
-        k: {"met": v["met"], "target": v["target"], "actual": v["actual"]}
-        for k, v in metrics.success_criteria_status.items()
-    }
+    prepared_for = (
+        "Board of Directors" if request.audience == "ciso" else "Customer Success Review"
+    )
 
-    brief = {
-        "brief_id": brief_id,
-        "session_id": request.session_id,
+    period_info = _parse_period(metrics.period)
+
+    metadata = {
+        "customer_name": metrics.company_name,
+        "period": {"label": period_info.label, "start": period_info.start, "end": period_info.end},
         "audience": request.audience,
         "emphasis": request.emphasis,
         "length": request.length,
-        "period": metrics.period,
-        "company_name": metrics.company_name,
-        "thesis": outline.get("thesis", ""),
-        "closing_ask": outline.get("closing_ask", ""),
-        "sections": sections,
+        "prepared_by": "Abnormal Brief Studio",
+        "prepared_for": prepared_for,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    # Normalize sections to Brief Section schema
+    normalized_sections = []
+    for i, s in enumerate(sections):
+        normalized_sections.append({
+            "section_id": s.get("section_id") or s.get("id", f"sec_{i+1:02d}"),
+            "order": s.get("order", i + 1),
+            "headline": s.get("headline", ""),
+            "prose_inline": s.get("prose_inline") or s.get("content", ""),
+            "prose_print": s.get("prose_print") or s.get("prose_inline") or s.get("content", ""),
+            "exhibit_refs": s.get("exhibit_refs") or s.get("exhibits", []),
+            "so_what": s.get("so_what", ""),
+        })
+
+    # Normalize exhibits to Brief Exhibit schema
+    normalized_exhibits = [ex.model_dump() for ex in exhibits]
+
+    # Build embedded evidence index
+    embedded_evidence = _build_evidence_index(evidence)
+
+    # Build risks from anomalies
+    risks = _build_risks(anomalies, evidence)
+
+    brief = {
+        "brief_id": brief_id,
+        "metadata": metadata,
+        "thesis": thesis,
+        "executive_summary": executive_summary,
+        "sections": normalized_sections,
+        "exhibits": normalized_exhibits,
         "recommendations": recommendations,
-        "risks": [],
-        "success_criteria": success_summary,
-        "benchmarks_summary": metrics.benchmarks_summary,
-        "audit": {
+        "risks_open_items": risks,
+        "closing": {"ask": closing_ask, "audience_specific": True},
+        "evidence_index": embedded_evidence,
+        # Pipeline internals stored for regeneration but excluded from contract model
+        "_session_id": request.session_id,
+        "_observations": observations,
+        "_outline": outline,
+        "_critique": {
+            "narrative_score": critique.get("narrative_score", 75),
+            "issues": critique.get("issues", []),
+        },
+        "_audit": {
             "passed": audit.get("audit_passed", True),
             "issues": len(audit.get("issues", [])),
         },
-        "critique": {
-            "narrative_score": critique.get("narrative_score", 75),
-            "thesis_honored": critique.get("thesis_honored", True),
-            "arc_coherent": critique.get("arc_coherent", True),
-            "summary": critique.get("critique_summary", ""),
-        },
-        "observations": observations,
-        "outline": outline,  # stored for per-section regeneration
+        "_emphasis": request.emphasis,
+        "_length": request.length,
     }
 
     yield _sse({"type": "done", "brief_id": brief_id})
-    # The brief object is yielded as a special internal event for the caller to store
     yield _sse({"type": "_brief_payload", "brief": brief})
