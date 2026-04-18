@@ -532,7 +532,12 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
 
   const handleDownload = () => {
     if (!presId) return
-    window.location.href = `/api/presentation/${presId}/download`
+    const a = document.createElement("a")
+    a.href = `/api/presentation/${presId}/download`
+    a.download = "presentation.pptx"
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

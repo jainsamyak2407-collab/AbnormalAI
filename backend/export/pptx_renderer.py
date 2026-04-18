@@ -66,7 +66,7 @@ def _add_text(
     p = tf.paragraphs[0]
     p.alignment = align
     run = p.add_run()
-    run.text = text
+    run.text = text or ""
     run.font.name = font_name
     run.font.size = Pt(font_pt)
     run.font.color.rgb = _rgb(color_key)

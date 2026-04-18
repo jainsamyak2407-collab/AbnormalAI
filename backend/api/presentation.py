@@ -80,16 +80,44 @@ def _render_all_charts(slides: list[dict]) -> dict[int, bytes]:
     return charts
 
 
+_VALID_SLIDE_TYPES = {"title", "thesis", "what_happened", "what_needs_attention", "the_ask"}
+_VALID_COLORS     = {"ink", "accent", "success", "warning"}
+_VALID_REC_KINDS  = {"POLICY", "BUDGET", "HEADCOUNT", "EXPANSION", "TRAINING", "RENEWAL"}
+
+
+def _sanitize_slide(raw: dict) -> dict:
+    """Clamp enum fields to their Literal values so Pydantic validation never fails."""
+    d = dict(raw)
+    if d.get("slide_type") not in _VALID_SLIDE_TYPES:
+        d["slide_type"] = "title"
+    # callouts
+    for c in d.get("callouts") or []:
+        if isinstance(c, dict) and c.get("color") not in _VALID_COLORS:
+            c["color"] = "ink"
+    # recommendations
+    for r in d.get("recommendations") or []:
+        if isinstance(r, dict) and r.get("kind") not in _VALID_REC_KINDS:
+            r["kind"] = "POLICY"
+    # chart type
+    chart = d.get("chart")
+    if isinstance(chart, dict):
+        _VALID_CHART_TYPES = {"trend_line", "benchmark_bars", "department_bars", "criteria_scorecard"}
+        if chart.get("type") not in _VALID_CHART_TYPES:
+            d["chart"] = None
+    return d
+
+
 def _coerce_slide(raw: dict) -> dict:
     """
-    Validate slide dict against SlideContent pydantic model,
-    returning the model's dict on success or the raw dict on failure.
+    Sanitize then validate a slide dict against SlideContent pydantic model.
+    Returns the model's canonical dict; falls back to sanitized raw on error.
     """
+    sanitized = _sanitize_slide(raw)
     try:
-        return SlideContent(**raw).model_dump()
+        return SlideContent(**sanitized).model_dump()
     except Exception as exc:
         logger.warning("SlideContent validation warning: %s", exc)
-        return raw
+        return sanitized
 
 
 async def _generate_stream(brief_id: str, user_context: Optional[str]):
@@ -124,13 +152,6 @@ async def _generate_stream(brief_id: str, user_context: Optional[str]):
     # ── Stage P2: Slide Writer (5 parallel calls) ─────────────────────────────
     yield _sse({"type": "stage_start", "stage": "write", "label": "Writing slides"})
 
-    slides_done = [0]
-
-    async def _progress(slide_number: int):
-        slides_done[0] += 1
-        yield  # callback must be a coroutine but we yield SSE separately
-
-    # We can't yield inside the callback easily — emit a single in-progress event
     try:
         raw_slides = await slide_writer.run(
             slide_plan=slide_plan,
@@ -231,13 +252,14 @@ async def revise_slide(
     }
     # If slide had a chart, try to re-use the same exhibit id from the existing chart spec
     existing_chart = target.chart
-    if existing_chart and isinstance(existing_chart, dict):
-        # Find the exhibit_id that matches the chart type in the registry
-        match = next(
-            (eid for eid, e in exhibits_registry.items() if e["type"] == existing_chart.get("type")), None
-        )
-        if match:
-            plan_entry["chart_choice"] = {"exhibit_id": match, "reason": "Re-using existing chart"}
+    if existing_chart is not None:
+        existing_type = existing_chart.type if hasattr(existing_chart, "type") else (existing_chart.get("type") if isinstance(existing_chart, dict) else None)
+        if existing_type:
+            match = next(
+                (eid for eid, e in exhibits_registry.items() if e["type"] == existing_type), None
+            )
+            if match:
+                plan_entry["chart_choice"] = {"exhibit_id": match, "reason": "Re-using existing chart"}
 
     combined_context = f"{p.user_context or ''}\n\nRevision instruction for slide {slide_number}: {instruction}".strip()
 

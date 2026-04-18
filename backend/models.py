@@ -134,7 +134,7 @@ class SlideContent(BaseModel):
     callouts: Optional[list[SlideCallout]] = None
     recommendations: Optional[list[SlideRecommendation]] = None
     closing_ask: Optional[str] = None
-    footer: str
+    footer: str = ""
     evidence_refs: list[str] = Field(default_factory=list)
 
 
