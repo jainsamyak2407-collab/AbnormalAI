@@ -324,6 +324,10 @@ async def download_presentation(presentation_id: str) -> StreamingResponse:
     # Build .pptx
     charts = presentation_store.get_charts(presentation_id)
     slides_dicts = [s.model_dump() if hasattr(s, "model_dump") else s for s in p.slides]
+    if not charts:
+        charts = _render_all_charts(slides_dicts)
+        if charts:
+            presentation_store.save_charts(presentation_id, charts)
 
     try:
         pptx_bytes = render_presentation(slides_dicts, charts)

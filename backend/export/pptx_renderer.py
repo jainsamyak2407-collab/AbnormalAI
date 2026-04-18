@@ -12,6 +12,7 @@ from typing import Any
 
 from pptx import Presentation as PptxPresentation
 from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt, Emu
 
@@ -39,7 +40,7 @@ def _rgb(key: str) -> RGBColor:
 def _add_rect(slide, x: float, y: float, w: float, h: float,
               fill_key: str, line: bool = False) -> Any:
     shape = slide.shapes.add_shape(
-        1,  # MSO_SHAPE_TYPE.RECTANGLE
+        MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
         Inches(x), Inches(y), Inches(w), Inches(h),
     )
     shape.fill.solid()
@@ -104,7 +105,9 @@ def _add_chart_image(slide, png_bytes: bytes, x: float, y: float, w: float, h: f
 # ── full-bleed background ─────────────────────────────────────────────────────
 
 def _fill_background(slide, fill_key: str) -> None:
-    _add_rect(slide, 0, 0, SLIDE_WIDTH_IN, SLIDE_HEIGHT_IN, fill_key)
+    fill = slide.background.fill
+    fill.solid()
+    fill.fore_color.rgb = _rgb(fill_key)
 
 
 # ── slide builders ────────────────────────────────────────────────────────────
@@ -351,8 +354,8 @@ def render_presentation(slides: list[dict], chart_pngs: dict[int, bytes]) -> byt
             else:
                 logger.warning("Unknown slide type '%s' for slide %d; leaving blank.", st, sn)
         except Exception as exc:
-            logger.error("Slide %d (%s) render failed: %s", sn, st, exc)
-            # Leave the slide blank rather than crashing the whole deck
+            logger.error("Slide %d (%s) render failed: %s", sn, st, exc, exc_info=True)
+            raise
 
     buf = io.BytesIO()
     prs.save(buf)

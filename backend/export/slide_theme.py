@@ -28,9 +28,9 @@ SLIDE_THEME_HEX: dict[str, str] = {
 
 # Typography fallback stack (python-pptx cannot embed custom fonts on all platforms)
 FONTS = {
-    "serif":    "Georgia",          # fallback for IBM Plex Serif / Source Serif 4
-    "sans":     "Helvetica Neue",   # fallback for IBM Plex Sans / Inter
-    "mono":     "Menlo",            # fallback for IBM Plex Mono
+    "serif": "Georgia",       # cross-platform
+    "sans":  "Arial",         # cross-platform (was "Helvetica Neue", macOS-only)
+    "mono":  "Courier New",   # cross-platform (was "Menlo", macOS-only)
 }
 
 # Slide geometry (inches)
