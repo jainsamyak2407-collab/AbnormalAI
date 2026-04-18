@@ -16,6 +16,7 @@ from anthropic import AsyncAnthropic
 
 from ai.client import SONNET_MODEL
 from ai.prompt_utils import load_prompt, fill_template, extract_json
+from ai.skill_loader import inject_skill
 from analytics.evidence_index import EvidenceIndex
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,7 @@ async def write_one_section(
     """Write one section and return a structured section dict."""
     prompt_file = f"writer_{audience}.md"
     system_prompt, user_template = load_prompt(prompt_file)
+    system_prompt = inject_skill(system_prompt, "mckinsey_writing")
 
     evidence_for_prompt = {
         eid: {

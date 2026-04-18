@@ -14,6 +14,7 @@ from anthropic import AsyncAnthropic
 
 from ai.client import OPUS_MODEL
 from ai.prompt_utils import load_prompt, fill_template, extract_json
+from ai.skill_loader import inject_skill
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ async def run(
     exhibits_plan, and closing_ask.
     """
     system_prompt, user_template = load_prompt("architect.md")
+    system_prompt = inject_skill(system_prompt, "mckinsey_writing")
 
     user_message = fill_template(user_template, {
         "audience": audience,
