@@ -8,6 +8,7 @@ from api.ingest import router as ingest_router
 from api.generate import router as generate_router
 from api.evidence import router as evidence_router
 from api.datasets import router as datasets_router
+from api.presentation import router as presentation_router
 from dataset_store import seed_meridian_sample
 
 load_dotenv()
@@ -38,6 +39,7 @@ app.include_router(ingest_router, prefix="/api")
 app.include_router(generate_router, prefix="/api")
 app.include_router(evidence_router, prefix="/api")
 app.include_router(datasets_router, prefix="/api")
+app.include_router(presentation_router, prefix="/api")
 
 
 @app.get("/api/health")
