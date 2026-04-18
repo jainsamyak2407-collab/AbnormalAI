@@ -270,11 +270,11 @@ function EvidenceDrawer({ evidenceId, briefId, embeddedIndex, onClose }: {
 // Steer modal
 // ---------------------------------------------------------------------------
 
-function SteerModal({ briefId, section, onClose, onRegenerated }: {
-  briefId: string; section: BriefSection; onClose: () => void; onRegenerated: (s: BriefSection) => void
+function SteerModal({ briefId, section, initialSteering, onClose, onRegenerated }: {
+  briefId: string; section: BriefSection; initialSteering?: string; onClose: () => void; onRegenerated: (s: BriefSection) => void
 }) {
   const [tab, setTab] = useState<"steer" | "prompt">("steer")
-  const [steering, setSteering] = useState("")
+  const [steering, setSteering] = useState(initialSteering ?? "")
   const [promptData, setPromptData] = useState<{ system_prompt: string; user_prompt: string } | null>(null)
   const [loadingPrompt, setLoadingPrompt] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
@@ -394,13 +394,14 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
 // Section block
 // ---------------------------------------------------------------------------
 
-function SectionBlock({ section, index, briefId, exhibits, onChip, onRegenerated }: {
+function SectionBlock({ section, index, briefId, exhibits, onChip, onRegenerated, onFocus }: {
   section: BriefSection
   index: number
   briefId: string
   exhibits: Exhibit[]
   onChip: (id: string) => void
   onRegenerated: (s: BriefSection) => void
+  onFocus: (s: BriefSection) => void
 }) {
   const [steerOpen, setSteerOpen] = useState(false)
   const [rewriting, setRewriting] = useState(false)
@@ -423,7 +424,7 @@ function SectionBlock({ section, index, briefId, exhibits, onChip, onRegenerated
 
   return (
     <>
-      <section style={{ opacity: rewriting ? 0.5 : 1, transition: "opacity 0.2s" }} className="brief-section">
+      <section style={{ opacity: rewriting ? 0.5 : 1, transition: "opacity 0.2s" }} className="brief-section" onClick={() => onFocus(section)}>
         <div style={{ display: "flex", alignItems: "flex-start" }}>
           {/* Section number in margin */}
           <div style={{ width: "56px", flexShrink: 0, paddingTop: "4px" }}>
@@ -553,13 +554,30 @@ function RecommendationCard({ rec, index }: { rec: { rec_id: string; kind: strin
 }
 
 // ---------------------------------------------------------------------------
-// Action rail
+// Action rail — 6 actions
 // ---------------------------------------------------------------------------
 
-function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
-  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void
+type RailAction = {
+  id: string
+  icon: React.ReactNode
+  label: string
+  onClick?: () => void
+  href?: string
+  active?: boolean
+  disabled?: boolean
+  tooltip?: string
+}
+
+function ActionRail({ brief, briefId, focusedSection, onCopy, onAudienceToggle, onRailSteer }: {
+  brief: Brief
+  briefId: string
+  focusedSection: BriefSection | null
+  onCopy: () => void
+  onAudienceToggle: () => void
+  onRailSteer: (preset: string) => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [tooltip, setTooltip] = useState<string | null>(null)
 
   const handleCopy = () => {
     onCopy()
@@ -569,11 +587,73 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
 
   const score = brief._critique?.narrative_score ?? null
   const audience = brief.metadata?.audience ?? "ciso"
+  const hasFocus = focusedSection !== null
 
-  const railActions = [
+  const actions: RailAction[] = [
     {
+      id: "audience",
       icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M7 1l2 4h4l-3.5 2.5 1.5 4L7 9l-4 2.5 1.5-4L1 5h4l2-4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+      label: audience === "ciso" ? "→ CSM" : "→ CISO",
+      onClick: onAudienceToggle,
+      tooltip: "Switch audience and regenerate",
+    },
+    {
+      id: "revise",
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
+          <path d="M8.5 1.5a1.414 1.414 0 112 2L4 10H2v-2l6.5-6.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+      label: "REVISE",
+      onClick: hasFocus ? () => onRailSteer("") : undefined,
+      disabled: !hasFocus,
+      tooltip: hasFocus ? `Revise: ${focusedSection!.headline}` : "Click a section first",
+    },
+    {
+      id: "explain",
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M7 6.5v4M7 4.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      ),
+      label: "EXPLAIN",
+      onClick: hasFocus ? () => onRailSteer("Rewrite this section in plain language for a non-technical executive. Remove jargon. Lead with the business impact. Keep it under 80 words.") : undefined,
+      disabled: !hasFocus,
+      tooltip: hasFocus ? "Explain in plain language" : "Click a section first",
+    },
+    {
+      id: "strengthen",
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M7 2v10M3.5 5.5L7 2l3.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M2 11h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      ),
+      label: "STRENGTHEN",
+      onClick: hasFocus ? () => onRailSteer("Strengthen the narrative. Sharpen the governing claim. Cite more specific numbers. Make the so_what a concrete recommendation.") : undefined,
+      disabled: !hasFocus,
+      tooltip: hasFocus ? "Strengthen the argument" : "Click a section first",
+    },
+    {
+      id: "export",
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      ),
+      label: "PRINT PDF",
+      href: `/brief/${briefId}/print`,
+      tooltip: "Open print / PDF view",
+    },
+    {
+      id: "copy",
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
           <path d="M9.5 1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5L9.5 1z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
           <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -581,24 +661,7 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
       label: copied ? "COPIED" : "COPY MD",
       onClick: handleCopy,
       active: copied,
-    },
-    {
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-        </svg>
-      ),
-      label: "PRINT PDF",
-      href: `/brief/${briefId}/print`,
-    },
-    {
-      icon: (
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1l2 4h4l-3.5 2.5 1.5 4L7 9l-4 2.5 1.5-4L1 5h4l2-4z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-      label: audience === "ciso" ? "→ CSM" : "→ CISO",
-      onClick: onAudienceToggle,
+      tooltip: "Copy brief as Markdown",
     },
   ]
 
@@ -611,16 +674,17 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
       zIndex: 20,
       display: "flex",
       flexDirection: "column",
-      gap: "6px",
+      gap: "5px",
       alignItems: "flex-end",
     }}>
+      {/* Quality score */}
       {score !== null && (
         <div style={{
           padding: "6px 10px",
           background: "var(--bg-surface)",
           border: `1px solid ${score >= 80 ? "rgba(74,222,128,0.3)" : score >= 60 ? "rgba(251,191,36,0.3)" : "rgba(239,68,68,0.3)"}`,
           borderRadius: "4px",
-          marginBottom: "4px",
+          marginBottom: "6px",
           textAlign: "center",
         }}>
           <p style={{ fontFamily: MONO, fontSize: "16px", fontWeight: 700, color: score >= 80 ? "var(--success)" : score >= 60 ? "var(--warning)" : "var(--danger)", lineHeight: 1, marginBottom: "2px" }}>
@@ -630,36 +694,72 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle }: {
         </div>
       )}
 
-      {railActions.map((action) => {
-        const style = {
+      {/* Context hint */}
+      {hasFocus && (
+        <div style={{ marginBottom: "4px", maxWidth: "120px", textAlign: "right" }}>
+          <p style={{ fontFamily: MONO, fontSize: "7px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-tertiary)", lineHeight: 1.4 }}>
+            {focusedSection!.headline.split(" ").slice(0, 4).join(" ")}…
+          </p>
+        </div>
+      )}
+
+      {/* Tooltip */}
+      {tooltip && (
+        <div style={{
+          position: "absolute", right: "100%", marginRight: "8px",
+          background: "var(--bg-surface-2)", border: "1px solid var(--border-subtle)",
+          borderRadius: "3px", padding: "5px 10px", whiteSpace: "nowrap",
+          fontFamily: MONO, fontSize: "9px", color: "var(--text-secondary)",
+          pointerEvents: "none",
+        }}>
+          {tooltip}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {actions.map((action) => {
+        const isDisabled = action.disabled
+        const btnStyle = {
           display: "flex",
           alignItems: "center",
-          gap: "7px",
-          padding: "8px 12px",
+          gap: "6px",
+          padding: "7px 11px",
           background: action.active ? "var(--accent)" : "var(--bg-surface)",
-          border: `1px solid ${action.active ? "var(--accent)" : "var(--border-strong)"}`,
+          border: `1px solid ${action.active ? "var(--accent)" : isDisabled ? "var(--border-subtle)" : "var(--border-strong)"}`,
           borderRadius: "4px",
-          cursor: "pointer" as const,
-          color: action.active ? "#fff" : "var(--text-secondary)",
+          cursor: isDisabled ? "not-allowed" as const : "pointer" as const,
+          color: action.active ? "#fff" : isDisabled ? "var(--text-tertiary)" : "var(--text-secondary)",
           fontFamily: MONO,
           fontSize: "8px",
           fontWeight: 700,
           letterSpacing: "0.12em",
           textTransform: "uppercase" as const,
           textDecoration: "none",
-          transition: "background 0.15s, border-color 0.15s",
+          transition: "background 0.15s, border-color 0.15s, opacity 0.15s",
           whiteSpace: "nowrap" as const,
+          opacity: isDisabled ? 0.45 : 1,
         }
-        if ("href" in action && action.href) {
+
+        if (action.href) {
           return (
-            <Link key={action.label} href={action.href} target="_blank" style={style}>
-              {action.icon}{action.label}
+            <Link
+              key={action.id} href={action.href} target="_blank" style={btnStyle}
+              onMouseEnter={() => setTooltip(action.tooltip ?? null)}
+              onMouseLeave={() => setTooltip(null)}
+            >
+              {action.icon} {action.label}
             </Link>
           )
         }
         return (
-          <button key={action.label} onClick={action.onClick} style={style}>
-            {action.icon}{action.label}
+          <button
+            key={action.id}
+            onClick={isDisabled ? undefined : action.onClick}
+            style={btnStyle}
+            onMouseEnter={() => setTooltip(action.tooltip ?? null)}
+            onMouseLeave={() => setTooltip(null)}
+          >
+            {action.icon} {action.label}
           </button>
         )
       })}
@@ -680,6 +780,9 @@ export default function BriefPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeEvidence, setActiveEvidence] = useState<string | null>(null)
+  const [focusedSection, setFocusedSection] = useState<BriefSection | null>(null)
+  const [railSteerSection, setRailSteerSection] = useState<BriefSection | null>(null)
+  const [railSteerPreset, setRailSteerPreset] = useState<string>("")
 
   useEffect(() => {
     getBrief(briefId)
@@ -729,6 +832,16 @@ export default function BriefPage() {
     if (brief.closing?.ask) lines.push(`\n---\n${brief.closing.ask}`)
     navigator.clipboard.writeText(lines.join("\n"))
   }, [brief])
+
+  const handleFocusSection = useCallback((s: BriefSection) => {
+    setFocusedSection(s)
+  }, [])
+
+  const handleRailSteer = useCallback((preset: string) => {
+    if (!focusedSection) return
+    setRailSteerSection(focusedSection)
+    setRailSteerPreset(preset)
+  }, [focusedSection])
 
   const handleAudienceToggle = useCallback(() => {
     if (!brief) return
@@ -881,6 +994,7 @@ export default function BriefPage() {
                   exhibits={exhibits}
                   onChip={handleChip}
                   onRegenerated={handleSectionRegenerated}
+                  onFocus={handleFocusSection}
                 />
               ))}
             </div>
@@ -951,7 +1065,28 @@ export default function BriefPage() {
       </div>
 
       {/* Fixed action rail */}
-      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} />
+      <ActionRail
+        brief={brief}
+        briefId={briefId}
+        focusedSection={focusedSection}
+        onCopy={handleCopy}
+        onAudienceToggle={handleAudienceToggle}
+        onRailSteer={handleRailSteer}
+      />
+
+      {/* Rail-triggered steer modal */}
+      {railSteerSection && (
+        <SteerModal
+          briefId={briefId}
+          section={railSteerSection}
+          initialSteering={railSteerPreset}
+          onClose={() => setRailSteerSection(null)}
+          onRegenerated={(updated) => {
+            handleSectionRegenerated(updated)
+            setRailSteerSection(null)
+          }}
+        />
+      )}
 
       {/* Evidence drawer */}
       <EvidenceDrawer
