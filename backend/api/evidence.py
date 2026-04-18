@@ -1,14 +1,17 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Body, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from ai import stage3_writer
 from ai.client import get_async_client
 from ai.prompt_utils import load_prompt, fill_template
 from analytics.evidence_index import EvidenceIndex, EvidenceRecord as EvidenceDataclass
-from models import EvidenceResponse, BreakdownSegment
+from models import Brief, EvidenceResponse, BreakdownSegment
 from store import store
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -131,11 +134,26 @@ async def get_brief_evidence_index(brief_id: str) -> list[EvidenceResponse]:
 
 @router.get("/brief/{brief_id}")
 async def get_brief(brief_id: str) -> dict:
-    """Return the stored brief JSON."""
+    """Return the stored brief JSON, validated against the Brief contract.
+
+    Returns 500 if the stored brief is missing required fields so that callers
+    know the pipeline produced an incomplete artifact rather than silently
+    receiving a partial response.
+    """
     brief_entry = store.get(brief_id)
     if brief_entry is None:
         raise HTTPException(status_code=404, detail="Brief not found.")
-    return brief_entry.get("brief", brief_entry)
+    raw = brief_entry.get("brief", brief_entry)
+    try:
+        validated = Brief.model_validate(raw)
+        return validated.model_dump(mode="json")
+    except ValidationError as exc:
+        missing = [e["loc"] for e in exc.errors()]
+        logger.error("Brief %s failed contract validation: %s", brief_id, missing)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Brief contract violation — missing fields: {missing}",
+        )
 
 
 # ---------------------------------------------------------------------------
