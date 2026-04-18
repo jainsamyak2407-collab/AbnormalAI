@@ -288,10 +288,9 @@ def _normalize_v2_schemas(result: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
         else:
             df["is_vip"] = False
 
-        # Fill missing is_vip as False and coerce to bool
+        # Fill missing is_vip as False, use plain Python bool (not BooleanDtype)
         if "is_vip" in df.columns:
-            df["is_vip"] = df["is_vip"].fillna(False)
-            df["is_vip"], _ = _coerce_bool_series(df["is_vip"])
+            df["is_vip"] = df["is_vip"].fillna(False).astype(bool)
         else:
             df["is_vip"] = False
 
@@ -327,10 +326,8 @@ def _normalize_v2_schemas(result: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
                 else:
                     rem_df["outcome"] = "unknown"
 
-                rem_df["started_at"] = rem_df.get("timestamp", pd.NaT)
-                rem_df["completed_at"] = rem_df.get(
-                    "remediation_timestamp", pd.NaT
-                ) if "remediation_timestamp" in rem_df.columns else pd.NaT
+                rem_df["started_at"] = rem_df["timestamp"] if "timestamp" in rem_df.columns else pd.NaT
+                rem_df["completed_at"] = rem_df["remediation_timestamp"] if "remediation_timestamp" in rem_df.columns else pd.NaT
 
                 # Ensure datetime types
                 for col in ("started_at", "completed_at"):

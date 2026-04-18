@@ -1,8 +1,12 @@
 import json
+import logging
+import traceback
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+
+logger = logging.getLogger(__name__)
 
 from analytics.anomalies import detect_anomalies
 from analytics.benchmarks import load_benchmarks
@@ -121,7 +125,15 @@ async def ingest(
             content = await f.read()
             raw_files[f.filename or f"file_{len(raw_files)}"] = content
 
-    session = _run_pipeline(raw_files)
+    try:
+        session = _run_pipeline(raw_files)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        tb = traceback.format_exc()
+        logger.error("Ingest pipeline error:\n%s", tb)
+        raise HTTPException(status_code=500, detail=f"Pipeline error: {exc}") from exc
+
     store.set(session_id, session)
 
     return IngestResponse(
