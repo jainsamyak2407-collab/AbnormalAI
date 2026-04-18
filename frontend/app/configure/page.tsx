@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import type { Audience, Emphasis, Length } from "@/lib/types"
@@ -98,7 +98,7 @@ const LENGTH_OPTIONS: { id: Length; label: string; desc: string }[] = [
   { id: "full", label: "Full", desc: "5–6 sections · ~160 words each" },
 ]
 
-export default function ConfigurePage() {
+function ConfigurePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id") ?? searchParams.get("session") ?? ""
@@ -342,5 +342,13 @@ export default function ConfigurePage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function ConfigurePage() {
+  return (
+    <Suspense>
+      <ConfigurePageInner />
+    </Suspense>
   )
 }

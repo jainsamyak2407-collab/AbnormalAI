@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
@@ -17,7 +17,7 @@ const STAGES = [
   { num: 6, label: "NARRATIVE CRITIC", sub: "Reviewing narrative quality and thesis coherence" },
 ]
 
-export default function GeneratePage() {
+function GeneratePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id") ?? ""
@@ -228,5 +228,13 @@ export default function GeneratePage() {
       </main>
 
     </div>
+  )
+}
+
+export default function GeneratePage() {
+  return (
+    <Suspense>
+      <GeneratePageInner />
+    </Suspense>
   )
 }

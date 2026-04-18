@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { ingestFiles, ingestSample } from "@/lib/api"
@@ -59,7 +59,7 @@ function StepBar({ current }: { current: 1 | 2 | 3 }) {
   )
 }
 
-export default function IngestPage() {
+function IngestPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isSample = searchParams.get("sample") === "true"
@@ -359,5 +359,13 @@ export default function IngestPage() {
         </p>
       </footer>
     </div>
+  )
+}
+
+export default function IngestPage() {
+  return (
+    <Suspense>
+      <IngestPageInner />
+    </Suspense>
   )
 }
