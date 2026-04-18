@@ -70,7 +70,6 @@ async def write_one_slide(
     system_prompt, user_template = load_prompt("slide_writer.md")
 
     presentation_skill = _load_skill("mckinsey_presentation")
-    writing_skill = _load_skill("mckinsey_writing")
 
     slide_number: int = slide_plan_entry.get("slide_number", 1)
     slide_type: str = slide_plan_entry.get("slide_type", "title")
@@ -84,8 +83,9 @@ async def write_one_slide(
 
     # Trim brief: skip outline (large) but keep sections, thesis, recommendations, observations
     brief_for_prompt = {
-        k: v for k, v in brief.items()
-        if k not in ("outline",)
+        k: brief[k]
+        for k in ("thesis", "closing_ask", "audience", "company_name", "period", "success_criteria")
+        if k in brief
     }
 
     user_message = fill_template(user_template, {
@@ -95,9 +95,8 @@ async def write_one_slide(
         "slide_plan_entry_json": plan_with_data,
         "brief_json": brief_for_prompt,
         "audience_profile_json": audience_profile,
-        "user_context": user_context or "No additional context provided.",
+        "user_context": user_context or "",
         "presentation_skill": presentation_skill,
-        "writing_skill": writing_skill,
     })
 
     response = await client.messages.create(

@@ -594,7 +594,7 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
             <div>
               <p style={{ fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 700,
                 color: "var(--text-primary)", marginBottom: 8 }}>
-                Generate a 5-slide McKinsey-style deck
+                Generate a 5-slide executive deck
               </p>
               <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-tertiary)",
                 letterSpacing: "0.06em", marginBottom: 24 }}>

@@ -2,7 +2,7 @@
 
 You are writing one slide of a 5-slide McKinsey-style executive deck for a security software company's customer brief.
 
-Read and apply every rule in the McKinsey presentation skill before writing any copy. Every number must have an evidence_ref that resolves in the brief. Never invent data.
+Read and apply every rule in the PRESENTATION SKILL RULES section of the user message before writing any copy. Every number must have an evidence_ref that resolves in the brief. Never invent data.
 
 Return only valid JSON matching the SlideContent schema. No preamble, no markdown outside the JSON block.
 
@@ -136,14 +136,11 @@ FULL BRIEF:
 AUDIENCE PROFILE:
 {audience_profile_json}
 
-USER ADDITIONAL CONTEXT:
-{user_context}
-
-MCKINSEY PRESENTATION SKILL:
+PRESENTATION SKILL RULES:
 {presentation_skill}
 
-MCKINSEY WRITING SKILL:
-{writing_skill}
+USER ADDITIONAL CONTEXT (may be empty — use the brief and slide plan if so):
+{user_context}
 
 Return only the SlideContent JSON. No preamble. Apply the checklist before returning.
 ```

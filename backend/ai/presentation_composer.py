@@ -165,7 +165,7 @@ async def run(
     # Trim brief: omit fields that add tokens without helping structure decisions
     brief_for_prompt = {
         k: v for k, v in brief.items()
-        if k not in ("outline",)
+        if k not in ("outline", "sections", "observations")
     }
 
     user_message = fill_template(user_template, {
