@@ -732,7 +732,7 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
               <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
             </svg>
           ),
-          label: "Export PDF",
+          label: "Download PDF",
           href: `/brief/${briefId}/print`,
         },
         {

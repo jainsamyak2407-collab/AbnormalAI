@@ -100,8 +100,9 @@ async def write_one_section(
     response = await client.messages.create(
         model=SONNET_MODEL,
         max_tokens=800,
-        system=system_prompt,
+        system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
+        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
     )
 
     raw = response.content[0].text

@@ -13,6 +13,7 @@ from anthropic import AsyncAnthropic
 
 from ai.client import SONNET_MODEL
 from ai.prompt_utils import load_prompt, fill_template, extract_json
+from ai.skill_loader import inject_skill
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ async def run(
     thesis_contracts = _build_thesis_contracts(outline)
 
     system_prompt, user_template = load_prompt("critic.md")
+    system_prompt = inject_skill(system_prompt, "mckinsey_writing")
 
     user_message = fill_template(user_template, {
         "company_name": company_name,

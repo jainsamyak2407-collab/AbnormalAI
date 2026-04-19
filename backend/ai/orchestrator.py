@@ -5,12 +5,13 @@ Called by api/generate.py.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from pathlib import Path
 from typing import AsyncGenerator
 
-from ai import stage1_interpreter, stage2_architect, stage3_writer, stage4_recommender, stage5_auditor, stage6_critic
+from ai import stage1_interpreter, stage2_architect, stage3_writer, stage4_recommender, stage5_auditor
 from ai.client import get_async_client
 from analytics.evidence_index import EvidenceIndex
 from analytics.metrics import MetricsBundle
@@ -23,10 +24,8 @@ PROFILES_DIR = Path(__file__).parent.parent / "profiles"
 STAGE_NAMES = [
     "Data Interpreter",
     "Narrative Architect",
-    "Section Writer",
-    "Recommendation Reasoner",
+    "Section Writer & Recommendations",
     "Evidence Auditor",
-    "Narrative Critic",
 ]
 
 
@@ -45,7 +44,8 @@ async def run_pipeline(
     session: dict,
 ) -> AsyncGenerator[str, None]:
     """
-    Async generator that runs the 5-stage AI pipeline and yields SSE event strings.
+    Async generator that runs the 4-stage AI pipeline and yields SSE event strings.
+    Stages 3 and 4 run in parallel.
     Final event: {"type": "done", "brief_id": "..."}
     """
     metrics: MetricsBundle = session["metrics"]
@@ -61,7 +61,7 @@ async def run_pipeline(
     # -----------------------------------------------------------------------
     # Stage 1: Data Interpreter
     # -----------------------------------------------------------------------
-    yield _sse({"type": "stage_start", "stage": 1, "stage_name": STAGE_NAMES[0], "total_stages": 6})
+    yield _sse({"type": "stage_start", "stage": 1, "stage_name": STAGE_NAMES[0], "total_stages": 4})
     try:
         observations = await stage1_interpreter.run(
             metrics=metrics,
@@ -76,12 +76,12 @@ async def run_pipeline(
         yield _sse({"type": "error", "stage": 1, "message": "Stage 1 failed."})
         raise
 
-    yield _sse({"type": "stage_complete", "stage": 1, "stage_name": STAGE_NAMES[0], "total_stages": 6})
+    yield _sse({"type": "stage_complete", "stage": 1, "stage_name": STAGE_NAMES[0], "total_stages": 4})
 
     # -----------------------------------------------------------------------
     # Stage 2: Narrative Architect
     # -----------------------------------------------------------------------
-    yield _sse({"type": "stage_start", "stage": 2, "stage_name": STAGE_NAMES[1], "total_stages": 6})
+    yield _sse({"type": "stage_start", "stage": 2, "stage_name": STAGE_NAMES[1], "total_stages": 4})
     try:
         outline = await stage2_architect.run(
             observations=observations,
@@ -98,65 +98,56 @@ async def run_pipeline(
         yield _sse({"type": "error", "stage": 2, "message": "Stage 2 failed."})
         raise
 
-    yield _sse({"type": "stage_complete", "stage": 2, "stage_name": STAGE_NAMES[1], "total_stages": 6})
+    yield _sse({"type": "stage_complete", "stage": 2, "stage_name": STAGE_NAMES[1], "total_stages": 4})
 
     # -----------------------------------------------------------------------
-    # Stage 3: Section Writer (parallel)
+    # Stage 3 + Stage 4 in parallel
+    # Stage 3: Section Writer (per-pillar parallel internally)
+    # Stage 4: Recommendation Reasoner (only needs observations, not sections)
     # -----------------------------------------------------------------------
-    yield _sse({"type": "stage_start", "stage": 3, "stage_name": STAGE_NAMES[2], "total_stages": 6})
+    yield _sse({"type": "stage_start", "stage": 3, "stage_name": STAGE_NAMES[2], "total_stages": 4})
     try:
-        sections = await stage3_writer.run(
-            outline=outline,
-            observations=observations,
-            evidence=evidence,
-            audience=request.audience,
-            length=request.length,
-            period=metrics.period,
-            company_name=metrics.company_name,
-            client=client,
-        )
-    except Exception as e:
-        logger.error("Stage 3 failed: %s", e)
-        yield _sse({"type": "error", "stage": 3, "message": "Stage 3 failed."})
-        raise
-
-    yield _sse({"type": "stage_complete", "stage": 3, "stage_name": STAGE_NAMES[2], "total_stages": 6})
-
-    # -----------------------------------------------------------------------
-    # Stage 4: Recommendation Reasoner
-    # -----------------------------------------------------------------------
-    yield _sse({"type": "stage_start", "stage": 4, "stage_name": STAGE_NAMES[3], "total_stages": 6})
-    try:
-        recommendations = await stage4_recommender.run(
-            observations=observations,
-            sections=sections,
-            evidence=evidence,
-            audience=request.audience,
-            emphasis=request.emphasis,
-            period=metrics.period,
-            company_name=metrics.company_name,
-            audience_profile=audience_profile,
-            client=client,
+        sections, recommendations = await asyncio.gather(
+            stage3_writer.run(
+                outline=outline,
+                observations=observations,
+                evidence=evidence,
+                audience=request.audience,
+                length=request.length,
+                period=metrics.period,
+                company_name=metrics.company_name,
+                client=client,
+            ),
+            stage4_recommender.run(
+                observations=observations,
+                sections=[],  # not available yet; stage4 uses gap observations, not sections
+                evidence=evidence,
+                audience=request.audience,
+                emphasis=request.emphasis,
+                period=metrics.period,
+                company_name=metrics.company_name,
+                audience_profile=audience_profile,
+                client=client,
+            ),
         )
     except Exception as e:
         import traceback
-        logger.error("Stage 4 failed: %s\n%s", e, traceback.format_exc())
-        yield _sse({"type": "error", "stage": 4, "message": "Stage 4 failed."})
+        logger.error("Stage 3/4 failed: %s\n%s", e, traceback.format_exc())
+        yield _sse({"type": "error", "stage": 3, "message": "Section writing failed."})
         raise
 
-    yield _sse({"type": "stage_complete", "stage": 4, "stage_name": STAGE_NAMES[3], "total_stages": 6})
+    yield _sse({"type": "stage_complete", "stage": 3, "stage_name": STAGE_NAMES[2], "total_stages": 4})
 
     # -----------------------------------------------------------------------
-    # Stage 5: Evidence Auditor
+    # Stage 5: Evidence Auditor (programmatic only — no AI call)
     # -----------------------------------------------------------------------
-    yield _sse({"type": "stage_start", "stage": 5, "stage_name": STAGE_NAMES[4], "total_stages": 6})
+    yield _sse({"type": "stage_start", "stage": 4, "stage_name": STAGE_NAMES[3], "total_stages": 4})
     try:
-        audit = await stage5_auditor.run(
+        audit = stage5_auditor.run(
             sections=sections,
             evidence=evidence,
             period=metrics.period,
             company_name=metrics.company_name,
-            client=client,
         )
     except Exception as e:
         logger.error("Stage 5 failed: %s", e)
@@ -166,7 +157,6 @@ async def run_pipeline(
     regen_ids = set(audit.get("sections_to_regenerate", []))
     if regen_ids:
         logger.info("Regenerating sections: %s", regen_ids)
-        # Build the outline just for failed sections
         failed_pillars = [
             p for p in outline.get("pillars", [])
             if p.get("pillar_id", "").lower().replace("-", "_") in regen_ids
@@ -185,59 +175,12 @@ async def run_pipeline(
                     company_name=metrics.company_name,
                     client=client,
                 )
-                # Replace failed sections with rewritten versions
                 rewritten_by_id = {s["id"]: s for s in rewritten}
                 sections = [rewritten_by_id.get(s["id"], s) for s in sections]
             except Exception as e:
                 logger.error("Section regeneration failed: %s", e)
 
-    yield _sse({"type": "stage_complete", "stage": 5, "stage_name": STAGE_NAMES[4], "total_stages": 6})
-
-    # -----------------------------------------------------------------------
-    # Stage 6: Narrative Critic (non-fatal — one regen pass on blocking issues)
-    # -----------------------------------------------------------------------
-    yield _sse({"type": "stage_start", "stage": 6, "stage_name": STAGE_NAMES[5], "total_stages": 6})
-    try:
-        critique = await stage6_critic.run(
-            sections=sections,
-            outline=outline,
-            period=metrics.period,
-            company_name=metrics.company_name,
-            audience=request.audience,
-            client=client,
-        )
-    except Exception as e:
-        logger.error("Stage 6 failed (non-fatal): %s", e)
-        critique = {"narrative_score": 75, "issues": [], "sections_to_regenerate": [], "thesis_honored": True, "arc_coherent": True}
-
-    # Regenerate sections with blocking narrative issues (one pass, non-overlapping with Stage 5 regen)
-    critic_regen_ids = set(critique.get("sections_to_regenerate", []))
-    if critic_regen_ids:
-        logger.info("Stage 6 requesting regeneration: %s", critic_regen_ids)
-        critic_failed_pillars = [
-            p for p in outline.get("pillars", [])
-            if p.get("pillar_id", "").lower().replace("-", "_") in critic_regen_ids
-            or p.get("pillar_id", "") in critic_regen_ids
-        ]
-        if critic_failed_pillars:
-            critic_regen_outline = {**outline, "pillars": critic_failed_pillars}
-            try:
-                critic_rewritten = await stage3_writer.run(
-                    outline=critic_regen_outline,
-                    observations=observations,
-                    evidence=evidence,
-                    audience=request.audience,
-                    length=request.length,
-                    period=metrics.period,
-                    company_name=metrics.company_name,
-                    client=client,
-                )
-                rewritten_by_id = {s["id"]: s for s in critic_rewritten}
-                sections = [rewritten_by_id.get(s["id"], s) for s in sections]
-            except Exception as e:
-                logger.error("Stage 6 section regeneration failed: %s", e)
-
-    yield _sse({"type": "stage_complete", "stage": 6, "stage_name": STAGE_NAMES[5], "total_stages": 6})
+    yield _sse({"type": "stage_complete", "stage": 4, "stage_name": STAGE_NAMES[3], "total_stages": 4})
 
     # -----------------------------------------------------------------------
     # Assemble final brief
@@ -266,16 +209,9 @@ async def run_pipeline(
             "passed": audit.get("audit_passed", True),
             "issues": len(audit.get("issues", [])),
         },
-        "critique": {
-            "narrative_score": critique.get("narrative_score", 75),
-            "thesis_honored": critique.get("thesis_honored", True),
-            "arc_coherent": critique.get("arc_coherent", True),
-            "summary": critique.get("critique_summary", ""),
-        },
         "observations": observations,
-        "outline": outline,  # stored for per-section regeneration
+        "outline": outline,
     }
 
     yield _sse({"type": "done", "brief_id": brief_id})
-    # The brief object is yielded as a special internal event for the caller to store
     yield _sse({"type": "_brief_payload", "brief": brief})
