@@ -90,9 +90,10 @@ def _get_evidence_index(brief_id: str) -> EvidenceIndex:
     session = store.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found.")
-    evidence: EvidenceIndex | None = session.get("evidence")
-    if evidence is None:
+    raw_ev = session.get("evidence")
+    if raw_ev is None:
         raise HTTPException(status_code=404, detail="Session has no evidence index.")
+    evidence: EvidenceIndex = raw_ev if isinstance(raw_ev, EvidenceIndex) else EvidenceIndex.from_dict(raw_ev)
     return evidence
 
 

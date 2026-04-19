@@ -13,8 +13,11 @@ from typing import AsyncGenerator
 
 from ai import stage1_interpreter, stage2_architect, stage3_writer, stage4_recommender, stage5_auditor
 from ai.client import get_async_client
+from analytics.anomalies import Anomaly
 from analytics.evidence_index import EvidenceIndex
 from analytics.metrics import MetricsBundle
+from analytics.tenant_drift import TenantComparison, TenantDriftBundle
+from analytics.trends import TrendBundle, TrendPoint
 from models import GenerateRequest
 
 logger = logging.getLogger(__name__)
@@ -53,15 +56,43 @@ async def run_pipeline(
         raw_metrics if isinstance(raw_metrics, MetricsBundle)
         else MetricsBundle(**raw_metrics)
     )
+
     raw_evidence = session["evidence"]
     evidence: EvidenceIndex = (
         raw_evidence if isinstance(raw_evidence, EvidenceIndex)
         else EvidenceIndex.from_dict(raw_evidence)
     )
+
     account: dict = session["account"]
-    anomalies: list = session.get("anomalies", [])
-    trends = session.get("trends")
-    tenant_drift = session.get("tenant_drift")
+
+    raw_anomalies = session.get("anomalies") or []
+    anomalies: list[Anomaly] = [
+        a if isinstance(a, Anomaly) else Anomaly(**a)
+        for a in raw_anomalies
+    ]
+
+    raw_trends = session.get("trends")
+    if isinstance(raw_trends, TrendBundle):
+        trends = raw_trends
+    elif isinstance(raw_trends, dict):
+        trends = TrendBundle(**{
+            k: [TrendPoint(**p) for p in v]
+            for k, v in raw_trends.items()
+        })
+    else:
+        trends = None
+
+    raw_drift = session.get("tenant_drift")
+    if isinstance(raw_drift, TenantDriftBundle):
+        tenant_drift = raw_drift
+    elif isinstance(raw_drift, dict):
+        tenant_drift = TenantDriftBundle(
+            comparisons=[TenantComparison(**c) for c in raw_drift.get("comparisons", [])],
+            has_significant_drift=raw_drift.get("has_significant_drift", False),
+            summary=raw_drift.get("summary", ""),
+        )
+    else:
+        tenant_drift = None
 
     audience_profile = _load_profile(request.audience)
     client = get_async_client()

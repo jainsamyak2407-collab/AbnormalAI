@@ -5,11 +5,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Redis-backed store (Upstash REST API) with in-memory fallback
-# ---------------------------------------------------------------------------
-
 _redis = None
+
 
 def _get_redis():
     global _redis
@@ -29,14 +26,29 @@ def _get_redis():
     return _redis
 
 
-# TTL: 7 days — briefs survive restarts and cold starts
-_TTL = 60 * 60 * 24 * 7
+_TTL = 60 * 60 * 24 * 7  # 7 days
+
+
+def _encode(value: Any) -> str:
+    return json.dumps(value, default=str)
+
+
+def _decode(raw: Any) -> Any:
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return raw
+    # upstash_redis may auto-parse JSON — return as-is if already a dict/list
+    return raw
 
 
 class SessionStore:
     """
-    Redis-backed session store with transparent in-memory fallback.
-    Values are JSON-serialised so any JSON-compatible object can be stored.
+    Redis-backed session store (Upstash REST) with in-memory fallback.
+    All values are JSON-encoded on write and decoded on read.
     """
 
     def __init__(self) -> None:
@@ -46,10 +58,7 @@ class SessionStore:
         r = _get_redis()
         if r:
             try:
-                raw = r.get(key)
-                if raw is None:
-                    return None
-                return json.loads(raw) if isinstance(raw, str) else raw
+                return _decode(r.get(key))
             except Exception as exc:
                 logger.warning("Store.get Redis error (%s); trying fallback.", exc)
         return self._fallback.get(key)
@@ -58,7 +67,7 @@ class SessionStore:
         r = _get_redis()
         if r:
             try:
-                r.set(key, json.dumps(value, default=str), ex=_TTL)
+                r.set(key, _encode(value), ex=_TTL)
                 return
             except Exception as exc:
                 logger.warning("Store.set Redis error (%s); writing to fallback.", exc)
@@ -84,5 +93,4 @@ class SessionStore:
         return key in self._fallback
 
 
-# Module-level singleton shared across the application.
 store = SessionStore()

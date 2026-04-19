@@ -136,9 +136,16 @@ async def ingest(
 
     import dataclasses
     serializable = {
-        **session,
-        "metrics": dataclasses.asdict(session["metrics"]),
-        "evidence": session["evidence"].to_dict(),
+        "account":          session["account"],
+        "metrics":          dataclasses.asdict(session["metrics"]),
+        "evidence":         session["evidence"].to_dict(),
+        "anomalies":        [dataclasses.asdict(a) for a in session["anomalies"]],
+        "trends":           dataclasses.asdict(session["trends"]),
+        "tenant_drift":     dataclasses.asdict(session["tenant_drift"]) if session["tenant_drift"] else None,
+        "detected_schemas": session["detected_schemas"],
+        "warnings":         session["warnings"],
+        "period_detected":  session["period_detected"],
+        # dfs (pandas DataFrames) intentionally excluded — not needed downstream
     }
     store.set(session_id, serializable)
 
