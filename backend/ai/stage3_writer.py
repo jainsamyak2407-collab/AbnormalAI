@@ -2,7 +2,7 @@
 Stage 3: Section Writer
 Model: Claude Sonnet 4.6
 Input: one pillar intent + observations + evidence index + audience
-Output: structured section dict with prose_inline, prose_print, so_what, exhibit_refs
+Output: rendered markdown section
 Runs in parallel across all pillars.
 """
 
@@ -15,91 +15,48 @@ import re
 from anthropic import AsyncAnthropic
 
 from ai.client import SONNET_MODEL
-from ai.prompt_utils import load_prompt, fill_template, extract_json
-from ai.skill_loader import inject_skill
+from ai.prompt_utils import load_prompt, fill_template
 from analytics.evidence_index import EvidenceIndex
 
 logger = logging.getLogger(__name__)
 
+# Evidence chip pattern used to extract refs from written prose
 _CHIP_RE = re.compile(r"\[E(\d+)\]")
 
 
-def _extract_evidence_refs(prose: str) -> list[str]:
-    """Extract deduplicated [E{n}] refs from prose, in document order."""
-    refs = [f"E{n}" for n in _CHIP_RE.findall(prose)]
-    return list(dict.fromkeys(refs))
-
-
-def _parse_section(pillar: dict, raw: str) -> dict:
+def _parse_section(pillar: dict, raw_markdown: str) -> dict:
     """
-    Parse section output from the writer.
-
-    Writer now emits structured JSON with headline, prose_inline, prose_print,
-    so_what, exhibit_refs. Fall back to markdown parsing if JSON extraction fails.
+    Parse raw markdown from the writer into a structured section dict.
+    Extracts the headline (first ## line), body prose, evidence refs, and exhibit.
     """
-    section_id = pillar.get("pillar_id", "section").lower().replace("-", "_")
+    lines = raw_markdown.strip().splitlines()
 
-    # Attempt structured JSON parse first
-    parsed = extract_json(raw)
-    if isinstance(parsed, dict) and "prose_inline" in parsed:
-        headline = parsed.get("headline") or pillar.get("headline", "")
-        prose_inline = parsed.get("prose_inline", "")
-        prose_print = parsed.get("prose_print", prose_inline)  # fallback to inline
-        so_what = parsed.get("so_what", "")
-        exhibit_refs = parsed.get("exhibit_refs", [])
-        if not isinstance(exhibit_refs, list):
-            exhibit_refs = []
-
-        # Also compute evidence_refs from prose_inline for downstream auditing
-        evidence_refs = _extract_evidence_refs(prose_inline)
-
-        return {
-            "section_id": section_id,
-            "id": section_id,  # legacy compat for regenerate endpoint
-            "order": pillar.get("_order", 1),
-            "headline": headline,
-            "prose_inline": prose_inline,
-            "prose_print": prose_print,
-            "exhibit_refs": exhibit_refs,
-            "so_what": so_what,
-            "evidence_refs": evidence_refs,
-            # Legacy field kept for regenerate prompt rendering
-            "content": prose_inline,
-            "exhibits": exhibit_refs,
-        }
-
-    # Fallback: parse as markdown (old format)
-    logger.warning("Section %r returned non-JSON; falling back to markdown parse.", section_id)
-    lines = raw.strip().splitlines()
     headline = ""
     content_lines: list[str] = []
-    exhibit_name: str | None = None
+    exhibit: str | None = None
 
     for line in lines:
         if line.startswith("## ") and not headline:
             headline = line[3:].strip()
         elif line.startswith("{{EXHIBIT:"):
-            m = re.match(r"\{\{EXHIBIT:\s*(.+?)\}\}", line)
-            if m:
-                exhibit_name = m.group(1).strip()
+            exhibit_match = re.match(r"\{\{EXHIBIT:\s*(.+?)\}\}", line)
+            if exhibit_match:
+                exhibit = exhibit_match.group(1).strip()
         else:
             content_lines.append(line)
 
-    prose_inline = "\n".join(content_lines).strip()
-    evidence_refs = _extract_evidence_refs(raw)
+    content = "\n".join(content_lines).strip()
+
+    # Extract all evidence refs from the written prose
+    evidence_refs = [f"E{n}" for n in _CHIP_RE.findall(raw_markdown)]
+    evidence_refs = list(dict.fromkeys(evidence_refs))  # deduplicate, preserve order
 
     return {
-        "section_id": section_id,
-        "id": section_id,
-        "order": pillar.get("_order", 1),
+        "id": pillar.get("pillar_id", "section").lower().replace("-", "_"),
         "headline": headline or pillar.get("headline", ""),
-        "prose_inline": prose_inline,
-        "prose_print": prose_inline,  # no superscript conversion in fallback
-        "exhibit_refs": [exhibit_name] if exhibit_name else [],
-        "so_what": "",
+        "content": content,
+        "exhibits": [exhibit] if exhibit else [],
         "evidence_refs": evidence_refs,
-        "content": prose_inline,
-        "exhibits": [exhibit_name] if exhibit_name else [],
     }
 
 
@@ -116,8 +73,8 @@ async def write_one_section(
     """Write one section and return a structured section dict."""
     prompt_file = f"writer_{audience}.md"
     system_prompt, user_template = load_prompt(prompt_file)
-    system_prompt = inject_skill(system_prompt, "mckinsey_writing")
 
+    # Provide trimmed evidence index (metric_id, metric_name, value, calculation only)
     evidence_for_prompt = {
         eid: {
             "metric_id": rec.metric_id,
@@ -128,9 +85,6 @@ async def write_one_section(
         for eid, rec in evidence.all().items()
     }
 
-    # Resolve exhibit_id from pillar's exhibit name using the plan if available
-    exhibit_ref = pillar.get("exhibit_id") or pillar.get("exhibit") or "none"
-
     user_message = fill_template(user_template, {
         "company_name": company_name,
         "period": period,
@@ -139,15 +93,16 @@ async def write_one_section(
         "dominant_tension": pillar.get("dominant_tension", ""),
         "observations_json": observations_for_pillar,
         "evidence_index_json": evidence_for_prompt,
-        "exhibit_name": exhibit_ref,
+        "exhibit_name": pillar.get("exhibit") or "none",
         "length": length,
     })
 
     response = await client.messages.create(
         model=SONNET_MODEL,
-        max_tokens=1000,
-        system=system_prompt,
+        max_tokens=800,
+        system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
+        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
     )
 
     raw = response.content[0].text
@@ -173,19 +128,13 @@ async def run(
         logger.warning("Stage 3: no pillars in outline; returning empty sections.")
         return []
 
-    # Annotate pillar order and attach exhibit_ids from exhibits_plan
-    exhibits_plan = {ep.get("anchors_section"): ep for ep in outline.get("exhibits_plan", [])}
-    for i, pillar in enumerate(pillars):
-        pillar["_order"] = i + 1
-        ep = exhibits_plan.get(pillar.get("pillar_id"))
-        if ep:
-            pillar["exhibit_id"] = ep.get("exhibit_id")
-
+    # Build observation lookup by id
     obs_by_id = {o.get("observation_id", ""): o for o in observations}
 
     async def _task(pillar: dict) -> dict:
         obs_ids = pillar.get("observation_ids", [])
         pillar_obs = [obs_by_id[oid] for oid in obs_ids if oid in obs_by_id]
+        # Fall back to all observations if none matched (e.g. id format mismatch)
         if not pillar_obs:
             pillar_obs = observations
         return await write_one_section(

@@ -646,9 +646,9 @@ function ActionRail({ brief, briefId, focusedSection, onCopy, onAudienceToggle, 
           <path d="M2 3.5h10M2 7h10M2 10.5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
       ),
-      label: "PRINT PDF",
+      label: "DOWNLOAD PDF",
       href: `/brief/${briefId}/print`,
-      tooltip: "Open print / PDF view",
+      tooltip: "Save brief as PDF",
     },
     {
       id: "copy",

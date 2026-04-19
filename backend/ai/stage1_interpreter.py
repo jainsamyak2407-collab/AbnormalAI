@@ -125,40 +125,45 @@ async def run(
     evidence: EvidenceIndex,
     anomalies: list[Anomaly],
     trends: TrendBundle,
-    tenant_drift: TenantDriftBundle,
+    tenant_drift: TenantDriftBundle | None,
     client: AsyncAnthropic,
 ) -> list[dict]:
     """
     Run Stage 1: Data Interpreter.
     Returns a list of observation dicts.
     """
-    system_prompt, user_template = load_prompt("interpreter.md")
+    import traceback as _tb
+    try:
+        system_prompt, user_template = load_prompt("interpreter.md")
 
-    user_message = fill_template(user_template, {
-        "company_name": metrics.company_name,
-        "period": metrics.period,
-        "metrics_bundle_json": _serialize_metrics(metrics),
-        "benchmarks_summary_json": metrics.benchmarks_summary,
-        "anomalies_json": _serialize_anomalies(anomalies),
-        "tenant_drift_json": _serialize_tenant_drift(tenant_drift),
-        "evidence_index_summary": _evidence_summary(evidence),
-    })
+        user_message = fill_template(user_template, {
+            "company_name": metrics.company_name,
+            "period": metrics.period,
+            "metrics_bundle_json": _serialize_metrics(metrics),
+            "benchmarks_summary_json": metrics.benchmarks_summary,
+            "anomalies_json": _serialize_anomalies(anomalies),
+            "tenant_drift_json": _serialize_tenant_drift(tenant_drift) if tenant_drift is not None else {},
+            "evidence_index_summary": _evidence_summary(evidence),
+        })
 
-    response = await client.messages.create(
-        model=SONNET_MODEL,
-        max_tokens=8000,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_message}],
-    )
+        response = await client.messages.create(
+            model=SONNET_MODEL,
+            max_tokens=4000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
 
-    if not response.content or not response.content[0].text.strip():
-        raise ValueError(f"Claude returned empty response (stop_reason={response.stop_reason})")
-    raw = response.content[0].text
-    observations = extract_json(raw)
+        if not response.content or not response.content[0].text.strip():
+            raise ValueError(f"Claude returned empty response (stop_reason={response.stop_reason})")
+        raw = response.content[0].text
+        observations = extract_json(raw)
 
-    if not isinstance(observations, list):
-        logger.warning("Stage 1 returned non-list; wrapping.")
-        observations = [observations] if isinstance(observations, dict) else []
+        if not isinstance(observations, list):
+            logger.warning("Stage 1 returned non-list; wrapping.")
+            observations = [observations] if isinstance(observations, dict) else []
 
-    logger.info("Stage 1 produced %d observations.", len(observations))
-    return observations
+        logger.info("Stage 1 produced %d observations.", len(observations))
+        return observations
+    except Exception:
+        logger.error("Stage 1 failed with full traceback:\n%s", _tb.format_exc())
+        raise

@@ -179,7 +179,7 @@ export default function ConfigurePage() {
                       borderRadius: "8px",
                       border: `1.5px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
                       padding: "20px",
-                      background: selected ? "rgba(255,91,73,0.07)" : "var(--bg-surface)",
+                      background: selected ? "var(--accent-bg-subtle)" : "var(--bg-surface)",
                       cursor: "pointer",
                       transition: "border-color 0.15s, background 0.15s",
                     }}
@@ -251,7 +251,7 @@ export default function ConfigurePage() {
                       border: `1.5px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
                       padding: "14px 12px",
                       textAlign: "center",
-                      background: selected ? "rgba(255,91,73,0.07)" : "var(--bg-surface)",
+                      background: selected ? "var(--accent-bg-subtle)" : "var(--bg-surface)",
                       cursor: "pointer",
                       transition: "border-color 0.15s, background 0.15s",
                     }}
@@ -289,7 +289,7 @@ export default function ConfigurePage() {
                       border: `1.5px solid ${selected ? "var(--accent)" : "var(--border-strong)"}`,
                       padding: "14px 12px",
                       textAlign: "center",
-                      background: selected ? "rgba(255,91,73,0.07)" : "var(--bg-surface)",
+                      background: selected ? "var(--accent-bg-subtle)" : "var(--bg-surface)",
                       cursor: "pointer",
                       transition: "border-color 0.15s, background 0.15s",
                     }}

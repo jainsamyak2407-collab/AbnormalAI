@@ -132,8 +132,8 @@ class Brief(BaseModel):
     evidence_index: dict[str, BriefEvidenceRecord] = Field(default_factory=dict)
 
     # Stored for pipeline re-use (not rendered in UI)
-    _observations: list[dict] = Field(default_factory=list, exclude=True)
-    _outline: dict = Field(default_factory=dict, exclude=True)
+    observations: list[dict] = Field(default_factory=list, exclude=True)
+    outline: dict = Field(default_factory=dict, exclude=True)
 
 
 # ---------------------------------------------------------------------------

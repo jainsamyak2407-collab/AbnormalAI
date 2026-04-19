@@ -18,6 +18,7 @@
   --accent:         #FF5B49;
   --accent-hover:   #FF7463;
   --accent-dim:     #BF4537;
+  --accent-bg-subtle: rgba(255, 91, 73, 0.07);
 
   /* Semantic */
   --success:        #4ADE80;

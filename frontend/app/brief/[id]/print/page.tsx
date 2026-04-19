@@ -178,12 +178,7 @@ export default function PrintPage() {
       })
   }, [briefId])
 
-  useEffect(() => {
-    if (brief && !loading) {
-      const t = setTimeout(() => window.print(), 900)
-      return () => clearTimeout(t)
-    }
-  }, [brief, loading])
+  // No auto-print — user clicks the button when ready
 
   if (loading) {
     return (
@@ -237,19 +232,24 @@ export default function PrintPage() {
     <div style={{ maxWidth: "720px", margin: "0 auto", padding: "48px 0", fontFamily: SERIF, color: "#1A1A1A", background: "#FFFFFF" }}>
 
       {/* Print controls — hidden in print */}
-      <div className="no-print" style={{ marginBottom: "32px", display: "flex", gap: "12px" }}>
-        <button
-          onClick={() => window.print()}
-          style={{ padding: "8px 20px", background: "#1A1A1A", color: "#FAFAF7", border: "none", fontSize: "13px", cursor: "pointer", fontFamily: MONO }}
-        >
-          Print / Save as PDF
-        </button>
-        <button
-          onClick={() => window.close()}
-          style={{ padding: "8px 16px", background: "transparent", color: "#6B7280", border: "1px solid #E5E4DF", fontSize: "13px", cursor: "pointer", fontFamily: MONO }}
-        >
-          Close
-        </button>
+      <div className="no-print" style={{ marginBottom: "32px" }}>
+        <div style={{ display: "flex", gap: "12px", marginBottom: "10px" }}>
+          <button
+            onClick={() => window.print()}
+            style={{ padding: "10px 24px", background: "#1A1A1A", color: "#FAFAF7", border: "none", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: MONO, borderRadius: "3px" }}
+          >
+            Download PDF
+          </button>
+          <button
+            onClick={() => window.close()}
+            style={{ padding: "10px 16px", background: "transparent", color: "#6B7280", border: "1px solid #E5E4DF", fontSize: "13px", cursor: "pointer", fontFamily: MONO, borderRadius: "3px" }}
+          >
+            Close
+          </button>
+        </div>
+        <p style={{ fontFamily: MONO, fontSize: "11px", color: "#9CA3AF", margin: 0 }}>
+          In the print dialog, set <strong style={{ color: "#4C566A" }}>Destination</strong> to <strong style={{ color: "#4C566A" }}>"Save as PDF"</strong>
+        </p>
       </div>
 
       {/* Masthead */}
