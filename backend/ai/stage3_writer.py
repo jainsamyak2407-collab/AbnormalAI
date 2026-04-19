@@ -15,7 +15,7 @@ import re
 from anthropic import AsyncAnthropic
 
 from ai.client import SONNET_MODEL
-from ai.prompt_utils import load_prompt, fill_template
+from ai.prompt_utils import load_prompt, fill_template, extract_json
 from analytics.evidence_index import EvidenceIndex
 
 logger = logging.getLogger(__name__)
@@ -24,38 +24,44 @@ logger = logging.getLogger(__name__)
 _CHIP_RE = re.compile(r"\[E(\d+)\]")
 
 
-def _parse_section(pillar: dict, raw_markdown: str) -> dict:
+def _parse_section(pillar: dict, raw: str) -> dict:
     """
-    Parse raw markdown from the writer into a structured section dict.
-    Extracts the headline (first ## line), body prose, evidence refs, and exhibit.
+    Parse JSON output from the section writer into a structured section dict.
+    Falls back gracefully if JSON parsing fails.
     """
-    lines = raw_markdown.strip().splitlines()
+    section_id = pillar.get("pillar_id", "section").lower().replace("-", "_")
 
-    headline = ""
-    content_lines: list[str] = []
-    exhibit: str | None = None
+    try:
+        data = extract_json(raw)
+    except Exception:
+        data = {}
 
-    for line in lines:
-        if line.startswith("## ") and not headline:
-            headline = line[3:].strip()
-        elif line.startswith("{{EXHIBIT:"):
-            exhibit_match = re.match(r"\{\{EXHIBIT:\s*(.+?)\}\}", line)
-            if exhibit_match:
-                exhibit = exhibit_match.group(1).strip()
-        else:
-            content_lines.append(line)
+    if not isinstance(data, dict):
+        data = {}
 
-    content = "\n".join(content_lines).strip()
+    headline = data.get("headline") or pillar.get("headline", "")
+    prose_inline = data.get("prose_inline", "")
+    prose_print = data.get("prose_print", prose_inline)
+    so_what = data.get("so_what", "")
+    exhibit_refs = data.get("exhibit_refs") or []
+    if not isinstance(exhibit_refs, list):
+        exhibit_refs = []
 
-    # Extract all evidence refs from the written prose
-    evidence_refs = [f"E{n}" for n in _CHIP_RE.findall(raw_markdown)]
-    evidence_refs = list(dict.fromkeys(evidence_refs))  # deduplicate, preserve order
+    # Extract evidence chips from inline prose
+    evidence_refs = [f"E{n}" for n in _CHIP_RE.findall(prose_inline)]
+    evidence_refs = list(dict.fromkeys(evidence_refs))
 
     return {
-        "id": pillar.get("pillar_id", "section").lower().replace("-", "_"),
-        "headline": headline or pillar.get("headline", ""),
-        "content": content,
-        "exhibits": [exhibit] if exhibit else [],
+        "id": section_id,
+        "section_id": section_id,
+        "order": pillar.get("order", 0),
+        "headline": headline,
+        "prose_inline": prose_inline,
+        "prose_print": prose_print,
+        "so_what": so_what,
+        "content": prose_inline,   # legacy compat for brief page
+        "exhibit_refs": exhibit_refs,
+        "exhibits": exhibit_refs,  # legacy compat
         "evidence_refs": evidence_refs,
     }
 
@@ -99,7 +105,7 @@ async def write_one_section(
 
     response = await client.messages.create(
         model=SONNET_MODEL,
-        max_tokens=800,
+        max_tokens=1500,
         system=[{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_message}],
         extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},

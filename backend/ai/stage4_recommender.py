@@ -84,7 +84,7 @@ async def run(
 
     response = await client.messages.create(
         model=SONNET_MODEL,
-        max_tokens=1000,
+        max_tokens=2000,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
     )

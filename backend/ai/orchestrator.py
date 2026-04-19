@@ -190,6 +190,7 @@ async def run_pipeline(
         for k, v in metrics.success_criteria_status.items()
     }
 
+    thesis_str = outline.get("thesis", "")
     brief = {
         "brief_id": brief_id,
         "session_id": request.session_id,
@@ -198,11 +199,21 @@ async def run_pipeline(
         "length": request.length,
         "period": metrics.period,
         "company_name": metrics.company_name,
-        "thesis": outline.get("thesis", ""),
+        # Flat fields (legacy — brief page reads these)
+        "thesis": thesis_str,
         "closing_ask": outline.get("closing_ask", ""),
+        # Nested fields (new schema — types.ts ThesisBlock)
+        "thesis_block": {
+            "sentence": thesis_str,
+            "evidence_refs": outline.get("thesis_evidence_refs", []),
+        },
+        "executive_summary": outline.get("executive_summary", []),
+        "tension_arc": outline.get("tension_arc", ""),
         "sections": sections,
         "recommendations": recommendations,
         "risks": [],
+        "risks_open_items": [],
+        "closing": {"ask": outline.get("closing_ask", ""), "audience_specific": True},
         "success_criteria": success_summary,
         "benchmarks_summary": metrics.benchmarks_summary,
         "audit": {
