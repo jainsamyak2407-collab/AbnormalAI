@@ -29,8 +29,34 @@ def _get_redis():
 _TTL = 60 * 60 * 24 * 7  # 7 days
 
 
+class _SafeEncoder(json.JSONEncoder):
+    """JSON encoder that converts numpy/pandas scalars to Python natives."""
+    def default(self, obj):
+        try:
+            import numpy as np
+            if isinstance(obj, np.integer):
+                return int(obj)
+            if isinstance(obj, np.floating):
+                return float(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if isinstance(obj, np.bool_):
+                return bool(obj)
+        except ImportError:
+            pass
+        try:
+            import pandas as pd
+            if isinstance(obj, pd.Timestamp):
+                return str(obj)
+            if hasattr(obj, 'item'):  # numpy scalar fallback
+                return obj.item()
+        except ImportError:
+            pass
+        return super().default(obj)
+
+
 def _encode(value: Any) -> str:
-    return json.dumps(value, default=str)
+    return json.dumps(value, cls=_SafeEncoder)
 
 
 def _decode(raw: Any) -> Any:
@@ -41,14 +67,14 @@ def _decode(raw: Any) -> Any:
             return json.loads(raw)
         except (json.JSONDecodeError, ValueError):
             return raw
-    # upstash_redis may auto-parse JSON — return as-is if already a dict/list
+    # upstash_redis may return already-parsed dict/list — return as-is
     return raw
 
 
 class SessionStore:
     """
     Redis-backed session store (Upstash REST) with in-memory fallback.
-    All values are JSON-encoded on write and decoded on read.
+    Uses a numpy-safe JSON encoder so numeric types never become strings.
     """
 
     def __init__(self) -> None:
