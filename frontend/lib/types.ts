@@ -123,6 +123,7 @@ export interface BriefEvidenceRecord {
 
 export interface Brief {
   brief_id: string
+  session_id?: string
   metadata: BriefMetadata
   thesis: ThesisBlock
   executive_summary: ExecutiveSummaryItem[]

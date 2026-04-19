@@ -847,7 +847,7 @@ export default function BriefPage() {
     if (!brief) return
     const audience = brief.metadata?.audience ?? "ciso"
     const newAudience = audience === "ciso" ? "csm" : "ciso"
-    const sessionId = brief._session_id ?? ""
+    const sessionId = brief.session_id || brief._session_id || ""
     const emphasis = brief._emphasis ?? "balanced"
     const length = brief._length ?? "standard"
     router.push(`/generate?${new URLSearchParams({ session_id: sessionId, audience: newAudience, emphasis, length }).toString()}`)

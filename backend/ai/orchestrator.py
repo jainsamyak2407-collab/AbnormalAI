@@ -73,7 +73,7 @@ async def run_pipeline(
         )
     except Exception as e:
         logger.error("Stage 1 failed: %s", e)
-        yield _sse({"type": "error", "stage": 1, "message": "Stage 1 failed."})
+        yield _sse({"type": "error", "stage": 1, "message": f"Stage 1 failed: {e}"})
         raise
 
     yield _sse({"type": "stage_complete", "stage": 1, "stage_name": STAGE_NAMES[0], "total_stages": 4})
@@ -95,7 +95,7 @@ async def run_pipeline(
         )
     except Exception as e:
         logger.error("Stage 2 failed: %s", e)
-        yield _sse({"type": "error", "stage": 2, "message": "Stage 2 failed."})
+        yield _sse({"type": "error", "stage": 2, "message": f"Stage 2 failed: {e}"})
         raise
 
     yield _sse({"type": "stage_complete", "stage": 2, "stage_name": STAGE_NAMES[1], "total_stages": 4})

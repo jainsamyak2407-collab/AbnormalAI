@@ -121,6 +121,7 @@ class BriefEvidenceRecord(BaseModel):
 
 class Brief(BaseModel):
     brief_id: str
+    session_id: Optional[str] = None
     metadata: BriefMetadata
     thesis: ThesisBlock
     executive_summary: list[ExecutiveSummaryItem] = Field(default_factory=list)
