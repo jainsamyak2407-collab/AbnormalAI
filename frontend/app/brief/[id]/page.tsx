@@ -382,7 +382,7 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
   const handleLoadPrompt = useCallback(async () => {
     if (promptData) return
     setLoadingPrompt(true)
-    try { setPromptData(await getSectionPrompt(briefId, section.id)) }
+    try { setPromptData(await getSectionPrompt(briefId, section.id ?? section.section_id)) }
     catch (e) { setError(e instanceof Error ? e.message : "Failed.") }
     finally { setLoadingPrompt(false) }
   }, [briefId, section.id, promptData])
@@ -400,7 +400,7 @@ function SteerModal({ briefId, section, onClose, onRegenerated }: {
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 120_000)
-      const result = await regenerateSection(briefId, section.id, steering || undefined)
+      const result = await regenerateSection(briefId, section.id ?? section.section_id, steering || undefined)
       clearTimeout(timeout)
       onRegenerated(result)
       onClose()
@@ -510,7 +510,7 @@ function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegene
 
   const handleQuickRegen = async () => {
     setRewriting(true)
-    try { onRegenerated(await regenerateSection(briefId, section.id)) }
+    try { onRegenerated(await regenerateSection(briefId, section.id ?? section.section_id)) }
     catch { /* silent */ }
     finally { setRewriting(false) }
   }
@@ -558,7 +558,7 @@ function SectionBlock({ section, index, briefId, evidenceIndex, onChip, onRegene
 
             {/* Prose */}
             <div style={{ fontFamily: SERIF, fontSize: "16px", lineHeight: 1.9, color: "#374151" }}>
-              {parseContent(section.content, onChip)}
+              {parseContent(section.content ?? section.prose_inline, onChip)}
             </div>
 
             {/* Exhibits */}
@@ -678,7 +678,7 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const otherAudience = brief.audience === "ciso" ? "CSM" : "CISO"
+  const otherAudience = brief.metadata.audience === "ciso" ? "CSM" : "CISO"
 
   return (
     <div style={{
@@ -844,17 +844,16 @@ export default function BriefPage() {
 
   const handleCopy = useCallback(() => {
     if (!brief) return
-    const lines: string[] = [`# ${brief.company_name} — ${brief.period}`, `\n> ${brief.thesis}`]
+    const lines: string[] = [`# ${brief.metadata.customer_name} — ${brief.metadata.period.label}`, `\n> ${brief.thesis.sentence}`]
     for (const s of brief.sections) {
       lines.push(`\n## ${s.headline}`)
-      lines.push(s.content.replace(/\[E\d+\]/g, ""))
+      lines.push((s.content ?? s.prose_inline).replace(/\[E\d+\]/g, ""))
     }
     if (brief.recommendations.length > 0) {
       lines.push("\n## Recommendations")
       for (const [i, r] of brief.recommendations.entries()) {
-        const rec = r as Record<string, string | undefined>
-        lines.push(`\n${i + 1}. **${rec.action ?? ""}**`)
-        if (rec.expected_impact) lines.push(`   ${rec.expected_impact}`)
+        lines.push(`\n${i + 1}. **${r.headline}**`)
+        if (r.expected_impact) lines.push(`   ${r.expected_impact}`)
       }
     }
     navigator.clipboard.writeText(lines.join("\n"))
@@ -862,11 +861,11 @@ export default function BriefPage() {
 
   const handleAudienceToggle = useCallback(() => {
     if (!brief) return
-    const newAudience = brief.audience === "ciso" ? "csm" : "ciso"
-    const sessionId = (rawBrief.session_id as string) || brief.session_id
+    const newAudience = brief.metadata.audience === "ciso" ? "csm" : "ciso"
+    const sessionId = (rawBrief.session_id as string) || brief._session_id
     const emphasis = (rawBrief.emphasis as string) || "balanced"
     const length = (rawBrief.length as string) || "standard"
-    router.push(`/generate?${new URLSearchParams({ session_id: sessionId, audience: newAudience, emphasis, length }).toString()}`)
+    router.push(`/generate?${new URLSearchParams({ session_id: sessionId ?? "", audience: newAudience, emphasis, length }).toString()}`)
   }, [brief, rawBrief, router])
 
   if (loading) return (
@@ -908,10 +907,10 @@ export default function BriefPage() {
             textTransform: "uppercase", padding: "4px 10px",
             background: "var(--accent)", color: "#fff", borderRadius: "2px",
           }}>
-            {brief.audience === "ciso" ? "CISO" : "CSM QBR"}
+            {brief.metadata.audience === "ciso" ? "CISO" : "CSM QBR"}
           </span>
           <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
-            {brief.period}
+            {brief.metadata.period.label}
           </span>
         </div>
         <span style={{ fontFamily: MONO, fontSize: "9px", color: "var(--text-tertiary)", letterSpacing: "0.1em" }}>
@@ -929,7 +928,7 @@ export default function BriefPage() {
               <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "40px" }}>
                 <div style={{ flex: 1, height: "1px", background: P.accent }} />
                 <span style={{ fontFamily: MONO, fontSize: "8px", fontWeight: 700, letterSpacing: "0.28em", textTransform: "uppercase", color: P.accent }}>
-                  INTELLIGENCE BRIEF · {brief.period}
+                  INTELLIGENCE BRIEF · {brief.metadata.period.label}
                 </span>
                 <div style={{ flex: 1, height: "1px", background: P.accent }} />
               </div>
@@ -940,7 +939,7 @@ export default function BriefPage() {
                 lineHeight: 1.02, letterSpacing: "-0.025em",
                 color: P.text, marginBottom: "36px",
               }}>
-                {brief.company_name}
+                {brief.metadata.customer_name}
               </h1>
 
               {/* Thesis lede */}
@@ -954,7 +953,7 @@ export default function BriefPage() {
                   fontSize: "19px", lineHeight: 1.75, color: P.text,
                   fontStyle: "italic", fontWeight: 400,
                 }}>
-                  {brief.thesis}
+                  {brief.thesis.sentence}
                 </p>
               </blockquote>
             </div>
@@ -990,7 +989,7 @@ export default function BriefPage() {
                   </p>
                 </div>
                 {brief.recommendations.map((rec, i) => (
-                  <RecommendationCard key={i} rec={rec as Record<string, unknown>} index={i} />
+                  <RecommendationCard key={i} rec={rec as unknown as Record<string, unknown>} index={i} />
                 ))}
               </div>
             )}
