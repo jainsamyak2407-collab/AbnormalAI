@@ -12,6 +12,7 @@ import {
 import { getBrief, getEvidence, getSectionPrompt, regenerateSection, getBriefEvidenceIndex } from "@/lib/api"
 import type { Brief, BriefSection, EvidenceRecord } from "@/lib/types"
 import { PresentationModal } from "@/components/presentation/PresentationModal"
+import type { SlideContent } from "@/components/presentation/PresentationModal"
 
 const MONO = "var(--font-mono)"
 const SERIF = "var(--font-serif)"
@@ -332,8 +333,8 @@ function EvidenceDrawer({ evidenceId, briefId, onClose }: { evidenceId: string |
 
   return (
     <>
-      {open && <div style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)" }} onClick={onClose} />}
-      <div style={{
+      {open && <div className="brief-evidence-drawer" style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)" }} onClick={onClose} />}
+      <div className="brief-evidence-drawer" style={{
         position: "fixed", top: 0, right: 0, height: "100%", zIndex: 50,
         width: "480px", background: P.bg, borderLeft: `1px solid ${P.border}`,
         display: "flex", flexDirection: "column",
@@ -681,7 +682,7 @@ function ActionRail({ brief, onCopy, onAudienceToggle, onDeck, onPrint }: {
   const otherAudience = brief.metadata.audience === "ciso" ? "CSM" : "CISO"
 
   return (
-    <div style={{
+    <div className="brief-action-rail" style={{
       position: "fixed",
       bottom: "28px",
       right: "28px",
@@ -813,6 +814,8 @@ export default function BriefPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeEvidence, setActiveEvidence] = useState<string | null>(null)
   const [presentationOpen, setPresentationOpen] = useState(false)
+  const [deckPresId, setDeckPresId] = useState<string | null>(null)
+  const [deckSlides, setDeckSlides] = useState<SlideContent[]>([])
 
   useEffect(() => {
     Promise.all([
@@ -855,7 +858,11 @@ export default function BriefPage() {
   const handleAudienceToggle = useCallback(() => {
     if (!brief) return
     const newAudience = brief.metadata.audience === "ciso" ? "csm" : "ciso"
-    const sessionId = (rawBrief.session_id as string) || brief._session_id || ""
+    const sessionId = brief.session_id || (rawBrief.session_id as string) || brief._session_id || ""
+    if (!sessionId) {
+      alert("Cannot switch audience: session expired. Please re-upload your data.")
+      return
+    }
     const emphasis = brief.metadata.emphasis || "balanced"
     const length = brief.metadata.length || "standard"
     router.push(`/generate?${new URLSearchParams({ session_id: sessionId, audience: newAudience, emphasis, length }).toString()}`)
@@ -877,14 +884,14 @@ export default function BriefPage() {
   )
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-page)" }}>
+    <div className="brief-page-root" style={{ minHeight: "100vh", background: "var(--bg-page)" }}>
       <style>{`
         .brief-section .section-actions { opacity: 0; transition: opacity 0.15s; }
         .brief-section:hover .section-actions { opacity: 1; }
       `}</style>
 
       {/* Dark chrome header */}
-      <header style={{
+      <header className="brief-chrome-header" style={{
         position: "sticky", top: 0, zIndex: 30, background: "var(--bg-page)",
         borderBottom: "1px solid var(--border-subtle)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -913,8 +920,8 @@ export default function BriefPage() {
 
       {/* Paper document — white card on dark background */}
       <div style={{ maxWidth: "860px", margin: "48px auto 80px", padding: "0 24px" }}>
-        <div style={{ background: P.bg, boxShadow: "0 4px 40px rgba(0,0,0,0.25)", borderRadius: "2px" }}>
-          <div style={{ padding: "80px 80px 72px" }}>
+        <div className="brief-document-card" style={{ background: P.bg, boxShadow: "0 4px 40px rgba(0,0,0,0.25)", borderRadius: "2px" }}>
+          <div className="brief-document-inner" style={{ padding: "80px 80px 72px" }}>
 
             {/* Masthead */}
             <div style={{ marginBottom: "64px" }}>
@@ -1017,7 +1024,13 @@ export default function BriefPage() {
 
       {/* Presentation modal */}
       {presentationOpen && (
-        <PresentationModal briefId={briefId} onClose={() => setPresentationOpen(false)} />
+        <PresentationModal
+          briefId={briefId}
+          initialPresId={deckPresId}
+          initialSlides={deckSlides}
+          onReady={(pid, sl) => { setDeckPresId(pid || null); setDeckSlides(sl) }}
+          onClose={() => setPresentationOpen(false)}
+        />
       )}
     </div>
   )

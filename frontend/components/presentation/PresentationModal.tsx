@@ -48,7 +48,7 @@ interface SlideRecommendation {
   rationale: string
 }
 
-interface SlideContent {
+export interface SlideContent {
   slide_number: number
   slide_type: "title" | "thesis" | "what_happened" | "what_needs_attention" | "the_ask"
   headline?: string
@@ -444,14 +444,26 @@ interface ReviseState {
   [slideNumber: number]: { text: string; inProgress: boolean; error?: string }
 }
 
-export function PresentationModal({ briefId, onClose }: { briefId: string; onClose: () => void }) {
-  const [state,     setState]     = useState<ModalState>("idle")
+export function PresentationModal({
+  briefId,
+  initialPresId = null,
+  initialSlides = [],
+  onClose,
+  onReady,
+}: {
+  briefId: string
+  initialPresId?: string | null
+  initialSlides?: SlideContent[]
+  onClose: () => void
+  onReady?: (presId: string, slides: SlideContent[]) => void
+}) {
+  const [state,     setState]     = useState<ModalState>(initialPresId && initialSlides.length > 0 ? "ready" : "idle")
   const [userCtx,   setUserCtx]   = useState("")
   const [completed, setCompleted] = useState<Set<string>>(new Set())
   const [current,   setCurrent]   = useState<string | null>(null)
   const [error,     setError]     = useState<string | null>(null)
-  const [presId,    setPresId]    = useState<string | null>(null)
-  const [slides,    setSlides]    = useState<SlideContent[]>([])
+  const [presId,    setPresId]    = useState<string | null>(initialPresId)
+  const [slides,    setSlides]    = useState<SlideContent[]>(initialSlides)
   const [revise,    setRevise]    = useState<ReviseState>({})
 
   // Close on Escape
@@ -498,9 +510,11 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
             const data = await fetch(`/api/presentation/${ev.presentation_id}`)
             if (!data.ok) { setError("Failed to load slides. Try again."); setState("idle"); return }
             const pres = await data.json()
-            setSlides(pres.slides ?? [])
+            const loadedSlides: SlideContent[] = pres.slides ?? []
+            setSlides(loadedSlides)
             setPresId(ev.presentation_id)
             setState("ready")
+            onReady?.(ev.presentation_id, loadedSlides)
           }
         }
       }
@@ -524,7 +538,11 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
       })
       if (!res.ok) throw new Error("Revise failed.")
       const updated: SlideContent = await res.json()
-      setSlides(prev => prev.map(s => s.slide_number === slideNumber ? updated : s))
+      setSlides(prev => {
+        const next = prev.map(s => s.slide_number === slideNumber ? updated : s)
+        if (presId) onReady?.(presId, next)
+        return next
+      })
       setRevise(p => { const n = { ...p }; delete n[slideNumber]; return n })
     } catch (e) {
       setRevise(p => ({ ...p, [slideNumber]: { ...p[slideNumber], inProgress: false, error: e instanceof Error ? e.message : "Revision failed. Try again." } }))
@@ -740,16 +758,19 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
               </div>
 
               {/* Regenerate from scratch */}
-              <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid var(--border-subtle)" }}>
-                <button onClick={() => { setState("idle"); setSlides([]); setPresId(null) }}
+              <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 10, alignItems: "center" }}>
+                <button onClick={() => { setState("idle"); setSlides([]); setPresId(null); setUserCtx(""); onReady?.("", []) }}
                   style={{
-                    fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 700,
-                    letterSpacing: "0.12em", textTransform: "uppercase",
-                    padding: "8px 16px", background: "none", color: "var(--text-tertiary)",
-                    border: "1px solid var(--border-subtle)", borderRadius: 3, cursor: "pointer",
+                    fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
+                    letterSpacing: "0.14em", textTransform: "uppercase",
+                    padding: "8px 16px", background: "none", color: "var(--text-secondary)",
+                    border: "1px solid var(--border-strong)", borderRadius: 3, cursor: "pointer",
                   }}>
-                  Start over
+                  ↻ Generate new deck
                 </button>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text-tertiary)", letterSpacing: "0.08em" }}>
+                  This deck is cached for the session.
+                </span>
               </div>
             </div>
           )}
