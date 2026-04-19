@@ -134,7 +134,13 @@ async def ingest(
         logger.error("Ingest pipeline error:\n%s", tb)
         raise HTTPException(status_code=500, detail=f"Pipeline error: {exc}") from exc
 
-    store.set(session_id, session)
+    import dataclasses
+    serializable = {
+        **session,
+        "metrics": dataclasses.asdict(session["metrics"]),
+        "evidence": session["evidence"].to_dict(),
+    }
+    store.set(session_id, serializable)
 
     return IngestResponse(
         session_id=session_id,

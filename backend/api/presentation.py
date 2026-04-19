@@ -54,6 +54,7 @@ def _get_brief(brief_id: str) -> dict:
 
 def _get_metrics(brief: dict):
     """Retrieve MetricsBundle from the session that produced this brief."""
+    from analytics.metrics import MetricsBundle
     session_id = brief.get("session_id")
     if not session_id:
         raise HTTPException(status_code=422, detail="Brief has no session_id.")
@@ -63,6 +64,8 @@ def _get_metrics(brief: dict):
     metrics = session.get("metrics")
     if not metrics:
         raise HTTPException(status_code=422, detail="Session has no metrics.")
+    if not isinstance(metrics, MetricsBundle):
+        metrics = MetricsBundle(**metrics)
     return metrics
 
 

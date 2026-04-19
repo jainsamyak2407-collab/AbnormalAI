@@ -48,8 +48,16 @@ async def run_pipeline(
     Stages 3 and 4 run in parallel.
     Final event: {"type": "done", "brief_id": "..."}
     """
-    metrics: MetricsBundle = session["metrics"]
-    evidence: EvidenceIndex = session["evidence"]
+    raw_metrics = session["metrics"]
+    metrics: MetricsBundle = (
+        raw_metrics if isinstance(raw_metrics, MetricsBundle)
+        else MetricsBundle(**raw_metrics)
+    )
+    raw_evidence = session["evidence"]
+    evidence: EvidenceIndex = (
+        raw_evidence if isinstance(raw_evidence, EvidenceIndex)
+        else EvidenceIndex.from_dict(raw_evidence)
+    )
     account: dict = session["account"]
     anomalies: list = session.get("anomalies", [])
     trends = session.get("trends")

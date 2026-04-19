@@ -194,7 +194,8 @@ async def get_section_prompt(brief_id: str, section_id: str) -> dict:
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    evidence: EvidenceIndex = session["evidence"]
+    raw_ev = session["evidence"]
+    evidence: EvidenceIndex = raw_ev if isinstance(raw_ev, EvidenceIndex) else EvidenceIndex.from_dict(raw_ev)
     pillar = _resolve_pillar(brief, section_id)
     pillar_obs = _pillar_observations(brief, pillar)
 
@@ -254,7 +255,8 @@ async def regenerate_section(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    evidence: EvidenceIndex = session["evidence"]
+    raw_ev = session["evidence"]
+    evidence: EvidenceIndex = raw_ev if isinstance(raw_ev, EvidenceIndex) else EvidenceIndex.from_dict(raw_ev)
     pillar = _resolve_pillar(brief, section_id)
     pillar_obs = _pillar_observations(brief, pillar)
 

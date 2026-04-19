@@ -128,3 +128,23 @@ class EvidenceIndex:
             }
             for eid, rec in self._store.items()
         }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "EvidenceIndex":
+        """Reconstruct an EvidenceIndex from a to_dict() payload."""
+        idx = cls()
+        for eid, rec in data.items():
+            idx._store[eid] = EvidenceRecord(
+                evidence_id=rec["evidence_id"],
+                metric_id=rec["metric_id"],
+                metric_name=rec["metric_name"],
+                value=rec["value"],
+                calculation=rec["calculation"],
+                source_row_count=rec["source_row_count"],
+                source_rows=rec["source_rows"],
+                metric_type=rec.get("metric_type", "scalar"),
+            )
+        if idx._store:
+            max_n = max(int(k[1:]) for k in idx._store)
+            idx._counter = max_n
+        return idx
