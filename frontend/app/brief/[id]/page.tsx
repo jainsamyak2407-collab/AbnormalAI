@@ -668,8 +668,8 @@ function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; inde
 // Action rail (fixed bottom-right panel)
 // ---------------------------------------------------------------------------
 
-function ActionRail({ brief, onCopy, onAudienceToggle, onDeck, onPrint }: {
-  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void; onDeck: () => void; onPrint: () => void
+function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
+  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void; onDeck: () => void
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -734,7 +734,7 @@ function ActionRail({ brief, onCopy, onAudienceToggle, onDeck, onPrint }: {
             </svg>
           ),
           label: "Download PDF",
-          onClick: onPrint,
+          href: `/brief/${briefId}/print`,
         },
         {
           icon: (
@@ -751,19 +751,26 @@ function ActionRail({ brief, onCopy, onAudienceToggle, onDeck, onPrint }: {
         const btnStyle = {
           display: "flex", alignItems: "center", gap: "9px",
           padding: "9px 12px",
-          background: action.active ? `${P.accent}18` : P.surface,
-          border: `1px solid ${action.active ? P.accent : P.border}`,
+          background: (action as {active?: boolean}).active ? `${P.accent}18` : P.surface,
+          border: `1px solid ${(action as {active?: boolean}).active ? P.accent : P.border}`,
           borderRadius: "5px",
           cursor: "pointer" as const,
-          color: action.active ? P.accent : P.muted,
+          color: (action as {active?: boolean}).active ? P.accent : P.muted,
           fontFamily: MONO, fontSize: "9px", fontWeight: 600,
           letterSpacing: "0.06em",
           textDecoration: "none",
           width: "100%", textAlign: "left" as const,
           transition: "background 0.15s",
         }
+        if ((action as {href?: string}).href) {
+          return (
+            <Link key={action.label} href={(action as {href: string}).href} target="_blank" style={btnStyle}>
+              {action.icon}{action.label}
+            </Link>
+          )
+        }
         return (
-          <button key={action.label} onClick={action.onClick} style={btnStyle}>
+          <button key={action.label} onClick={(action as {onClick?: () => void}).onClick} style={btnStyle}>
             {action.icon}{action.label}
           </button>
         )
@@ -1017,7 +1024,7 @@ export default function BriefPage() {
       </div>
 
       {/* Fixed action rail */}
-      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} onDeck={() => setPresentationOpen(true)} onPrint={() => window.print()} />
+      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} onDeck={() => setPresentationOpen(true)} />
 
       {/* Evidence drawer */}
       <EvidenceDrawer evidenceId={activeEvidence} briefId={briefId} onClose={() => setActiveEvidence(null)} />
