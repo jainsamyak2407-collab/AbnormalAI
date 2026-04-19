@@ -667,8 +667,8 @@ function RecommendationCard({ rec, index }: { rec: Record<string, unknown>; inde
 // Action rail (fixed bottom-right panel)
 // ---------------------------------------------------------------------------
 
-function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
-  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void; onDeck: () => void
+function ActionRail({ brief, onCopy, onAudienceToggle, onDeck, onPrint }: {
+  brief: Brief; briefId: string; onCopy: () => void; onAudienceToggle: () => void; onDeck: () => void; onPrint: () => void
 }) {
   const [copied, setCopied] = useState(false)
 
@@ -733,7 +733,7 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
             </svg>
           ),
           label: "Download PDF",
-          href: `/brief/${briefId}/print`,
+          onClick: onPrint,
         },
         {
           icon: (
@@ -760,13 +760,6 @@ function ActionRail({ brief, briefId, onCopy, onAudienceToggle, onDeck }: {
           textDecoration: "none",
           width: "100%", textAlign: "left" as const,
           transition: "background 0.15s",
-        }
-        if ("href" in action && action.href) {
-          return (
-            <Link key={action.label} href={action.href} target="_blank" style={btnStyle}>
-              {action.icon}{action.label}
-            </Link>
-          )
         }
         return (
           <button key={action.label} onClick={action.onClick} style={btnStyle}>
@@ -862,10 +855,10 @@ export default function BriefPage() {
   const handleAudienceToggle = useCallback(() => {
     if (!brief) return
     const newAudience = brief.metadata.audience === "ciso" ? "csm" : "ciso"
-    const sessionId = (rawBrief.session_id as string) || brief._session_id
-    const emphasis = (rawBrief.emphasis as string) || "balanced"
-    const length = (rawBrief.length as string) || "standard"
-    router.push(`/generate?${new URLSearchParams({ session_id: sessionId ?? "", audience: newAudience, emphasis, length }).toString()}`)
+    const sessionId = (rawBrief.session_id as string) || brief._session_id || ""
+    const emphasis = brief.metadata.emphasis || "balanced"
+    const length = brief.metadata.length || "standard"
+    router.push(`/generate?${new URLSearchParams({ session_id: sessionId, audience: newAudience, emphasis, length }).toString()}`)
   }, [brief, rawBrief, router])
 
   if (loading) return (
@@ -1017,7 +1010,7 @@ export default function BriefPage() {
       </div>
 
       {/* Fixed action rail */}
-      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} onDeck={() => setPresentationOpen(true)} />
+      <ActionRail brief={brief} briefId={briefId} onCopy={handleCopy} onAudienceToggle={handleAudienceToggle} onDeck={() => setPresentationOpen(true)} onPrint={() => window.print()} />
 
       {/* Evidence drawer */}
       <EvidenceDrawer evidenceId={activeEvidence} briefId={briefId} onClose={() => setActiveEvidence(null)} />

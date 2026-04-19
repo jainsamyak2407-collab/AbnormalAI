@@ -11,10 +11,8 @@ type StageStatus = "pending" | "running" | "done"
 const STAGES = [
   { num: 1, label: "DATA INTERPRETER", sub: "Reading computed metrics and evidence index" },
   { num: 2, label: "NARRATIVE ARCHITECT", sub: "Structuring thesis, pillars, and section order" },
-  { num: 3, label: "SECTION WRITER", sub: "Drafting each section with evidence references" },
-  { num: 4, label: "RECOMMENDATION REASONER", sub: "Deriving actions from identified gaps" },
-  { num: 5, label: "EVIDENCE AUDITOR", sub: "Verifying all evidence references resolve" },
-  { num: 6, label: "NARRATIVE CRITIC", sub: "Reviewing narrative quality and thesis coherence" },
+  { num: 3, label: "SECTION WRITER & RECOMMENDATIONS", sub: "Drafting sections and reasoning recommendations in parallel" },
+  { num: 4, label: "EVIDENCE AUDITOR", sub: "Verifying every reference resolves and numbers match" },
 ]
 
 function GeneratePageInner() {
@@ -25,7 +23,7 @@ function GeneratePageInner() {
   const emphasis = searchParams.get("emphasis") ?? "balanced"
   const length = searchParams.get("length") ?? "standard"
 
-  const [stages, setStages] = useState<Record<number, StageStatus>>({ 1: "pending", 2: "pending", 3: "pending", 4: "pending", 5: "pending", 6: "pending" })
+  const [stages, setStages] = useState<Record<number, StageStatus>>({ 1: "pending", 2: "pending", 3: "pending", 4: "pending" })
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
