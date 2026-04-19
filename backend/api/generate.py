@@ -21,7 +21,10 @@ async def _stream(brief_id: str, request: GenerateRequest, session: dict):
             try:
                 event = json.loads(event_str.removeprefix("data: ").strip())
                 if event.get("type") == "_brief_payload":
+                    # Store immediately — before yielding done — so the brief
+                    # is in Redis before the client navigates to /brief/{id}
                     brief = event.get("brief")
+                    store.set(brief_id, {"brief": brief, "session_id": request.session_id})
                     continue
             except Exception:
                 pass
@@ -29,9 +32,6 @@ async def _stream(brief_id: str, request: GenerateRequest, session: dict):
     except Exception as e:
         # Stage raised after emitting its error SSE — yield a clean terminal error
         yield f'data: {json.dumps({"type": "error", "message": str(e)})}\n\n'
-
-    if brief is not None:
-        store.set(brief_id, {"brief": brief, "session_id": request.session_id})
 
 
 @router.post("/generate")

@@ -222,39 +222,97 @@ async def run_pipeline(
     yield _sse({"type": "stage_complete", "stage": 4, "stage_name": STAGE_NAMES[3], "total_stages": 4})
 
     # -----------------------------------------------------------------------
-    # Assemble final brief
+    # Assemble final brief — nested schema matching models.Brief
     # -----------------------------------------------------------------------
-    success_summary = {
-        k: {"met": v["met"], "target": v["target"], "actual": v["actual"]}
-        for k, v in metrics.success_criteria_status.items()
-    }
+    from datetime import datetime, timezone as _tz
+    import uuid as _uuid
 
     thesis_str = outline.get("thesis", "")
+    prepared_for = "CISO" if request.audience == "ciso" else "Customer Success"
+
+    # Build evidence_index from EvidenceIndex object
+    evidence_index = {
+        eid: {
+            "evidence_id": rec.evidence_id,
+            "metric_id": rec.metric_id,
+            "metric_label": rec.metric_name,
+            "metric_type": rec.metric_type,
+            "value": rec.value,
+            "unit": None,
+            "calculation_description": rec.calculation,
+            "source_rows": rec.source_rows,
+            "source_files": [],
+        }
+        for eid, rec in evidence.all().items()
+    }
+
+    # Normalise recommendations — ensure required fields exist
+    normalised_recs = []
+    for i, r in enumerate(recommendations):
+        if not isinstance(r, dict):
+            continue
+        normalised_recs.append({
+            "rec_id": r.get("rec_id") or f"R{i+1}",
+            "kind": r.get("kind", "POLICY"),
+            "headline": r.get("headline") or r.get("action", ""),
+            "expected_impact": r.get("expected_impact", ""),
+            "rationale": r.get("rationale", ""),
+            "evidence_refs": r.get("evidence_refs", []),
+            "risk_if_unaddressed": r.get("risk_if_unaddressed", ""),
+        })
+
+    # Normalise sections — ensure required fields exist
+    normalised_sections = []
+    for i, s in enumerate(sections):
+        if not isinstance(s, dict):
+            continue
+        prose = s.get("prose_inline") or s.get("content", "")
+        normalised_sections.append({
+            "section_id": s.get("section_id") or s.get("id") or f"s{i+1}",
+            "id": s.get("section_id") or s.get("id") or f"s{i+1}",
+            "order": s.get("order", i),
+            "headline": s.get("headline", ""),
+            "prose_inline": prose,
+            "prose_print": s.get("prose_print", prose),
+            "exhibit_refs": s.get("exhibit_refs", []),
+            "so_what": s.get("so_what", ""),
+            "content": prose,
+            "evidence_refs": s.get("evidence_refs", []),
+        })
+
     brief = {
         "brief_id": brief_id,
         "session_id": request.session_id,
-        "audience": request.audience,
-        "emphasis": request.emphasis,
-        "length": request.length,
-        "period": metrics.period,
-        "company_name": metrics.company_name,
-        # Flat fields (legacy — brief page reads these)
-        "thesis": thesis_str,
-        "closing_ask": outline.get("closing_ask", ""),
-        # Nested fields (new schema — types.ts ThesisBlock)
-        "thesis_block": {
+        # Nested metadata block
+        "metadata": {
+            "customer_name": metrics.company_name,
+            "period": {"label": metrics.period, "start": None, "end": None},
+            "audience": request.audience,
+            "emphasis": request.emphasis,
+            "length": request.length,
+            "prepared_by": "Abnormal Brief Studio",
+            "prepared_for": prepared_for,
+            "generated_at": datetime.now(_tz.utc).isoformat(),
+        },
+        # Nested thesis block
+        "thesis": {
             "sentence": thesis_str,
             "evidence_refs": outline.get("thesis_evidence_refs", []),
         },
         "executive_summary": outline.get("executive_summary", []),
-        "tension_arc": outline.get("tension_arc", ""),
-        "sections": sections,
-        "recommendations": recommendations,
-        "risks": [],
+        "sections": normalised_sections,
+        "exhibits": [],
+        "recommendations": normalised_recs,
         "risks_open_items": [],
         "closing": {"ask": outline.get("closing_ask", ""), "audience_specific": True},
-        "success_criteria": success_summary,
+        "evidence_index": evidence_index,
+        # Extra fields used by brief page and re-generation
+        "success_criteria": {
+            k: {"met": v["met"], "target": v["target"], "actual": v["actual"]}
+            for k, v in metrics.success_criteria_status.items()
+        },
         "benchmarks_summary": metrics.benchmarks_summary,
+        "tension_arc": outline.get("tension_arc", ""),
         "audit": {
             "passed": audit.get("audit_passed", True),
             "issues": len(audit.get("issues", [])),
@@ -263,5 +321,7 @@ async def run_pipeline(
         "outline": outline,
     }
 
-    yield _sse({"type": "done", "brief_id": brief_id})
+    # _brief_payload MUST come before done so generate.py stores the brief
+    # in Redis before the frontend navigates to /brief/{id}
     yield _sse({"type": "_brief_payload", "brief": brief})
+    yield _sse({"type": "done", "brief_id": brief_id})

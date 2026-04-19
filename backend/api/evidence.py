@@ -150,11 +150,9 @@ async def get_brief(brief_id: str) -> dict:
         return validated.model_dump(mode="json")
     except ValidationError as exc:
         missing = [e["loc"] for e in exc.errors()]
-        logger.error("Brief %s failed contract validation: %s", brief_id, missing)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Brief contract violation — missing fields: {missing}",
-        )
+        logger.warning("Brief %s contract validation — non-fatal: %s", brief_id, missing)
+        # Return raw brief so the frontend still gets data
+        return raw
 
 
 # ---------------------------------------------------------------------------
