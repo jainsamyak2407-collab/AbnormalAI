@@ -488,20 +488,20 @@ export function PresentationModal({ briefId, onClose }: { briefId: string; onClo
 
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue
-          try {
-            const ev = JSON.parse(line.slice(6))
-            if (ev.type === "stage_start")    { setCurrent(ev.stage) }
-            if (ev.type === "stage_complete") { setCompleted(p => new Set([...p, ev.stage])); setCurrent(null) }
-            if (ev.type === "error")          { setError(ev.message); setState("idle"); return }
-            if (ev.type === "done") {
-              const data = await fetch(`/api/presentation/${ev.presentation_id}`)
-              if (!data.ok) { setError("Failed to load slides. Try again."); setState("idle"); return }
-              const pres = await data.json()
-              setSlides(pres.slides ?? [])
-              setPresId(ev.presentation_id)
-              setState("ready")
-            }
-          } catch { /* malformed SSE line */ }
+          let ev: any
+          try { ev = JSON.parse(line.slice(6)) } catch { continue }
+
+          if (ev.type === "stage_start")    { setCurrent(ev.stage) }
+          if (ev.type === "stage_complete") { setCompleted(p => new Set([...p, ev.stage])); setCurrent(null) }
+          if (ev.type === "error")          { setError(ev.message); setState("idle"); return }
+          if (ev.type === "done") {
+            const data = await fetch(`/api/presentation/${ev.presentation_id}`)
+            if (!data.ok) { setError("Failed to load slides. Try again."); setState("idle"); return }
+            const pres = await data.json()
+            setSlides(pres.slides ?? [])
+            setPresId(ev.presentation_id)
+            setState("ready")
+          }
         }
       }
     } catch (e) {
